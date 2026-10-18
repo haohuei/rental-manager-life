@@ -2,84 +2,129 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>租賃管理人員的人森 — 代管房東的日常修羅場</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>租賃管理人員的人森 RPG — 代管房東的日常修羅場</title>
 <style>
   :root{
     color-scheme: light;
     --forest-900:#0f1f17; --forest-800:#1a2e22; --forest-700:#243d2d;
     --forest-500:#3d6b4a; --moss:#6b8e5a; --beige:#f1e9d2;
-    --beige-dim:#d9cfb4; --paper:#faf6ea; --warn:#c25a3b; --gold:#c9a24a;
+    --paper:#faf6ea; --warn:#c25a3b; --gold:#c9a24a;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{background:#f5f2e8;min-height:100vh;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;color:#2a2a2a;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{background:#0f1f17;min-height:100vh;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;color:var(--beige);overflow:hidden;position:fixed;width:100%;height:100%;}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
-  .frame{max-width:430px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,#0f1f17 0%,#1a2e22 40%,#0f1f17 100%);position:relative;overflow:hidden;color:var(--beige);}
-  .frame::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 20% 10%,rgba(107,142,90,.15),transparent 40%),radial-gradient(circle at 80% 90%,rgba(107,142,90,.12),transparent 50%);pointer-events:none;}
-  .screen{position:relative;min-height:100vh;display:flex;flex-direction:column;}
-  .center{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;position:relative;}
-  .trees{position:absolute;bottom:0;left:0;right:0;height:120px;opacity:.25;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120'><g fill='%236b8e5a'><path d='M30 120 L30 70 L15 70 L30 40 L22 40 L35 15 L48 40 L40 40 L55 70 L40 70 L40 120 Z'/><path d='M100 120 L100 80 L80 80 L105 40 L95 40 L115 10 L135 40 L125 40 L150 80 L130 80 L130 120 Z'/><path d='M200 120 L200 75 L185 75 L200 45 L192 45 L205 20 L218 45 L210 45 L225 75 L210 75 L210 120 Z'/><path d='M290 120 L290 82 L270 82 L295 42 L285 42 L305 12 L325 42 L315 42 L340 82 L320 82 L320 120 Z'/><path d='M370 120 L370 70 L358 70 L370 42 L365 42 L375 20 L385 42 L380 42 L392 70 L380 70 L380 120 Z'/></g></svg>") no-repeat bottom/cover;pointer-events:none;}
-  .z10{position:relative;z-index:2;}
-  .brand-small{font-size:11px;letter-spacing:.4em;color:var(--moss);margin-bottom:12px;}
-  .title-logo{font-family:"Noto Serif TC",serif;letter-spacing:.08em;text-shadow:0 2px 10px rgba(0,0,0,.6);font-weight:900;line-height:1.1;}
-  .title-xl{font-size:46px;margin-bottom:8px;}
-  .title-lg{font-size:36px;margin-bottom:16px;}
-  .title-md{font-size:18px;}
-  .subtitle{font-size:13px;color:var(--beige-dim);margin-bottom:40px;}
-  .card{background:var(--paper);color:#2a2a2a;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 0 0 1px rgba(0,0,0,.05);padding:20px;text-align:left;}
-  .card .label{font-size:11px;letter-spacing:.25em;color:var(--forest-700);margin-bottom:8px;}
-  .card .body{font-size:14px;line-height:1.7;color:#333;}
-  .btn-primary{background:var(--moss);color:#0f1f17;font-weight:800;border-radius:10px;padding:14px 20px;box-shadow:0 4px 0 #4a6a3d;font-size:16px;width:100%;}
-  .btn-primary:active{transform:translateY(2px);box-shadow:0 2px 0 #4a6a3d;}
-  .btn-ghost{background:transparent;color:var(--beige);border:1px solid rgba(241,233,210,.3);border-radius:10px;padding:12px 16px;font-size:14px;}
-  .foot{margin-top:12px;font-size:11px;color:var(--beige-dim);}
-  .header{padding:20px 16px 12px;}
-  .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .day-tag{font-size:10px;letter-spacing:.3em;color:var(--moss);}
-  .cash-label{font-size:10px;color:var(--beige-dim);text-align:right;}
-  .cash-val{font-size:22px;font-weight:900;text-align:right;color:var(--gold);}
-  .cash-val.neg{color:var(--warn);}
-  .stats{display:flex;gap:8px;}
-  .stat-pill{background:rgba(241,233,210,.08);border:1px solid rgba(241,233,210,.15);border-radius:10px;padding:7px 10px;flex:1;}
-  .stat-pill.narrow{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:7px 14px;}
-  .stat-row{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.15em;color:var(--beige-dim);margin-bottom:4px;}
-  .bar{height:5px;border-radius:3px;background:rgba(0,0,0,.3);overflow:hidden;}
-  .bar>i{display:block;height:100%;transition:width .4s;}
-  .rooms{text-align:center;}
-  .rooms .n{font-size:14px;font-weight:800;color:var(--beige);}
-  .body-area{flex:1;padding:0 16px 24px;}
-  .event-card{background:var(--paper);color:#2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);}
-  .event-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  #stage{position:relative;width:100%;height:100%;max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:#1a2e22;}
+  #gameCanvas{flex:1;width:100%;display:block;image-rendering:pixelated;touch-action:none;background:#2d4a35;}
+  /* HUD */
+  #hud{position:absolute;top:0;left:0;right:0;padding:10px 12px 8px;background:linear-gradient(180deg,rgba(15,31,23,.95),rgba(15,31,23,.6) 80%,transparent);z-index:5;}
+  .hud-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .day{font-family:"Noto Serif TC",serif;font-size:14px;letter-spacing:.1em;color:var(--moss);}
+  .day b{color:var(--beige);font-size:17px;}
+  .cash{font-size:17px;font-weight:900;color:var(--gold);}
+  .cash.neg{color:var(--warn);}
+  .hud-stats{display:flex;gap:6px;}
+  .stat{flex:1;background:rgba(241,233,210,.1);border:1px solid rgba(241,233,210,.15);border-radius:6px;padding:4px 6px;font-size:10px;}
+  .stat-l{letter-spacing:.1em;color:rgba(241,233,210,.65);display:flex;justify-content:space-between;}
+  .bar{height:3px;border-radius:2px;background:rgba(0,0,0,.4);margin-top:2px;overflow:hidden;}
+  .bar>i{display:block;height:100%;transition:width .3s;}
+  /* Controls */
+  #joy{position:absolute;left:18px;bottom:24px;width:120px;height:120px;background:rgba(241,233,210,.08);border:2px solid rgba(241,233,210,.2);border-radius:50%;z-index:6;touch-action:none;}
+  #stick{position:absolute;left:30px;top:30px;width:60px;height:60px;background:rgba(107,142,90,.55);border:2px solid rgba(241,233,210,.4);border-radius:50%;transition:transform .05s;}
+  #act{position:absolute;right:24px;bottom:40px;width:84px;height:84px;background:var(--moss);color:#0f1f17;font-weight:900;font-size:14px;border-radius:50%;box-shadow:0 5px 0 #4a6a3d;z-index:6;letter-spacing:.1em;}
+  #act:active{transform:translateY(3px);box-shadow:0 2px 0 #4a6a3d;}
+  #act:disabled{background:rgba(241,233,210,.15);color:rgba(241,233,210,.4);box-shadow:0 3px 0 rgba(0,0,0,.3);}
+  /* Modal */
+  .modal-bg{position:absolute;inset:0;background:rgba(15,31,23,.85);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .modal{background:var(--paper);color:#2a2a2a;border-radius:14px;width:100%;max-width:380px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.6);}
+  .modal-inner{padding:20px;}
+  .modal-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .tag{display:inline-block;padding:3px 12px;border-radius:999px;font-size:11px;background:var(--forest-700);color:var(--beige);letter-spacing:.1em;}
-  .event-time{font-size:12px;color:#8a8578;}
-  .event-title{font-size:20px;font-weight:900;color:#1a1a1a;margin-bottom:8px;line-height:1.3;}
-  .event-desc{font-size:14px;color:#444;line-height:1.65;}
-  .choices-label{font-size:11px;letter-spacing:.25em;color:var(--beige-dim);margin:0 4px 8px;}
-  .choice{display:block;width:100%;text-align:left;background:#fff;border:1px solid #d9cfb4;border-radius:10px;padding:14px;margin-bottom:8px;transition:all .15s;}
+  .m-time{font-size:12px;color:#8a8578;}
+  .m-title{font-size:19px;font-weight:900;color:#1a1a1a;margin-bottom:6px;line-height:1.3;}
+  .m-desc{font-size:13px;color:#444;line-height:1.6;margin-bottom:14px;}
+  .choice{display:block;width:100%;text-align:left;background:#fff;border:1px solid #d9cfb4;border-radius:10px;padding:12px;margin-bottom:8px;}
   .choice:active{transform:scale(.98);background:#f1e9d2;}
-  .choice:hover{border-color:var(--forest-500);box-shadow:0 2px 8px rgba(60,107,74,.25);}
-  .choice-text{font-weight:800;color:#1a1a1a;font-size:14px;margin-bottom:4px;}
-  .choice-note{font-size:11px;color:#666;line-height:1.5;}
-  .choice-deltas{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px;font-family:ui-monospace,monospace;}
-  .pos{color:#1a7a3d;}
-  .neg{color:#c2412b;}
-  .delta{position:fixed;left:50%;top:40%;transform:translateX(-50%);pointer-events:none;font-weight:900;font-size:30px;z-index:50;animation:float 1.4s ease-out forwards;text-shadow:0 2px 10px rgba(0,0,0,.5);}
-  @keyframes float{0%{opacity:0;transform:translate(-50%,10px);}20%{opacity:1;}100%{opacity:0;transform:translate(-50%,-50px);}}
-  .fade-in{animation:fade .4s ease;}
-  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-  .end-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#444;margin-top:4px;}
-  .end-stats b{color:#1a1a1a;}
-  .log-card{max-height:200px;overflow-y:auto;margin:16px 0;}
-  .log-item{font-size:12px;color:#555;margin-bottom:4px;}
-  .end-row{display:flex;gap:8px;margin-top:4px;}
-  .end-row .btn-primary{flex:1;width:auto;}
+  .ch-text{font-weight:800;color:#1a1a1a;font-size:13px;margin-bottom:3px;}
+  .ch-note{font-size:11px;color:#666;line-height:1.5;}
+  .ch-deltas{margin-top:6px;display:flex;gap:7px;flex-wrap:wrap;font-size:11px;font-family:ui-monospace,monospace;}
+  .pos{color:#1a7a3d;}.neg{color:#c2412b;}
+  /* Toasts */
+  #toast{position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:7;pointer-events:none;}
+  .msg{background:rgba(15,31,23,.9);color:var(--beige);padding:8px 14px;border-radius:999px;font-size:12px;margin-bottom:4px;border:1px solid rgba(107,142,90,.4);animation:popmsg 2s ease forwards;}
+  @keyframes popmsg{0%{opacity:0;transform:translateY(-6px);}15%{opacity:1;transform:translateY(0);}80%{opacity:1;}100%{opacity:0;}}
+  .delta{position:absolute;left:50%;top:45%;transform:translateX(-50%);pointer-events:none;font-weight:900;font-size:26px;z-index:30;text-shadow:0 2px 10px rgba(0,0,0,.6);animation:float 1.4s ease-out forwards;}
+  @keyframes float{0%{opacity:0;transform:translate(-50%,10px);}20%{opacity:1;}100%{opacity:0;transform:translate(-50%,-55px);}}
+  /* Screens */
+  .screen{position:absolute;inset:0;background:linear-gradient(180deg,#0f1f17 0%,#1a2e22 40%,#0f1f17 100%);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;}
+  .brand{font-size:11px;letter-spacing:.4em;color:var(--moss);margin-bottom:14px;}
+  .title-logo{font-family:"Noto Serif TC",serif;letter-spacing:.08em;text-shadow:0 2px 10px rgba(0,0,0,.6);font-weight:900;line-height:1.1;color:var(--beige);}
+  .title-xl{font-size:44px;margin-bottom:6px;}
+  .sub{font-size:13px;color:rgba(241,233,210,.75);margin-bottom:30px;}
+  .card-i{background:var(--paper);color:#2a2a2a;border-radius:12px;padding:16px;text-align:left;max-width:340px;width:100%;margin-bottom:20px;font-size:13px;line-height:1.7;}
+  .card-i b{color:var(--forest-700);}
+  .btn-p{background:var(--moss);color:#0f1f17;font-weight:900;border-radius:10px;padding:14px 24px;font-size:16px;box-shadow:0 5px 0 #4a6a3d;width:100%;max-width:340px;}
+  .btn-p:active{transform:translateY(2px);box-shadow:0 3px 0 #4a6a3d;}
+  .btn-g{background:transparent;color:var(--beige);border:1px solid rgba(241,233,210,.3);border-radius:10px;padding:12px 20px;font-size:13px;margin-top:10px;}
+  .end-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px;font-size:12px;color:#444;}
+  .end-stats b{color:#111;}
   .end-tag{font-size:11px;letter-spacing:.4em;margin-bottom:8px;}
   .end-tag.win{color:var(--moss);}
   .end-tag.lose{color:var(--warn);}
+  .hide{display:none !important;}
 </style>
 </head>
 <body>
-<div class="frame" id="app"></div>
+<div id="stage">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud" class="hide">
+    <div class="hud-row1">
+      <div class="day">DAY <b id="dayNum">1</b> / 30</div>
+      <div class="cash" id="cash">$50,000</div>
+    </div>
+    <div class="hud-stats">
+      <div class="stat"><div class="stat-l"><span>聲譽</span><span id="repN">60</span></div><div class="bar"><i id="repBar" style="width:60%;background:#9ad17f"></i></div></div>
+      <div class="stat"><div class="stat-l"><span>體力</span><span id="hpN">100</span></div><div class="bar"><i id="hpBar" style="width:100%;background:#e8b84a"></i></div></div>
+      <div class="stat"><div class="stat-l"><span>房源</span><span id="rmN">5</span></div><div class="bar"><i style="width:100%;background:#6b8e5a"></i></div></div>
+    </div>
+  </div>
+
+  <div id="joy" class="hide"><div id="stick"></div></div>
+  <button id="act" class="hide" disabled>互動</button>
+
+  <div id="toast"></div>
+
+  <!-- Intro -->
+  <div class="screen" id="intro">
+    <div class="brand">A GAME BY @a0921925365</div>
+    <h1 class="title-logo title-xl">租賃管理<br/>人員的人森</h1>
+    <div class="sub">RPG v0.2 · 這不是人生，是人森</div>
+    <div class="card-i">
+      你是 <b>老柯代管</b>，手上 5 間房。<br/>
+      在地圖上跑來跑去，走近 <b>⚠️ 的房子</b> 按互動鍵處理事件。<br/>
+      看到 <b>👮 里長 / 👷 水電工</b> 自動對話。<br/>
+      累了去 <b>🏪 便利商店</b> 補體力。<br/>
+      <b>撐 30 天就是贏家。</b>
+    </div>
+    <button class="btn-p" id="startBtn">開始輪班</button>
+    <div style="font-size:11px;color:rgba(241,233,210,.6);margin-top:10px;">手機：左下搖桿 + 右下互動鍵<br/>電腦：方向鍵/WASD + 空白鍵</div>
+  </div>
+
+  <!-- End -->
+  <div class="screen hide" id="endScr">
+    <div class="end-tag" id="endTag">GAME OVER</div>
+    <h1 class="title-logo" style="font-size:36px;margin-bottom:16px;" id="endTitle">人森，暫停</h1>
+    <div class="card-i">
+      <div id="endMsg" style="margin-bottom:10px;"></div>
+      <div class="end-stats" id="endStats"></div>
+    </div>
+    <button class="btn-p" id="againBtn">再來一輪</button>
+    <button class="btn-g" id="shareBtn">分享戰績</button>
+  </div>
+</div>
+
 <script>
 const EVENTS = [
   {
@@ -336,170 +381,461 @@ const EVENTS = [
   }
 ];
 
-const STATE = {
+// ===== Game State =====
+const S = {
   day:1, maxDay:30, cash:50000, rep:60, hp:100, rooms:5,
-  seen:[], log:[], gameover:false, win:false, endMsg:""
+  seen:[], log:[], gameover:false, win:false, endMsg:"",
+  running:false, inEvent:false, tick:0,
+  dayTimer:0, dayLen:1800 // frames per day
 };
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-function el(h){const d=document.createElement("div");d.innerHTML=h.trim();return d.firstChild;}
-function fx(text,color){const d=document.createElement("div");d.className="delta";d.style.color=color;d.textContent=text;document.body.appendChild(d);setTimeout(()=>d.remove(),1400);}
+const SAVE_KEY = "rental_manager_rpg_v02";
 
+function saveGame(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({best:Math.max((JSON.parse(localStorage.getItem(SAVE_KEY)||'{}').best||0),S.day-1)}));}catch(e){}}
+function getBest(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}').best||0;}catch(e){return 0;}}
+
+// ===== Canvas =====
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+let W=430, H=800;
+function resize(){
+  const r = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=r.width; H=r.height;
+}
+window.addEventListener("resize", resize);
+
+// ===== World =====
+// Tiles: 0 grass, 1 path, 2 tree(block), 3 house(block/interact), 4 store(interact)
+const TILES_X = 12, TILES_Y = 20;
+const TS = 36; // tile size — recalculated on resize
+let world = [];
+const houses = []; // {tx,ty, hasEvent, cooldown}
+const stores = []; // {tx,ty}
+const trees = [];
+function genWorld(){
+  world = Array.from({length:TILES_Y},()=>Array(TILES_X).fill(0));
+  houses.length=0; stores.length=0; trees.length=0;
+  // paths — vertical center + horizontal cross roads
+  for(let y=0;y<TILES_Y;y++){ world[y][5]=1; world[y][6]=1; }
+  for(let x=0;x<TILES_X;x++){ world[4][x]=1; world[10][x]=1; world[16][x]=1; }
+  // place houses at fixed spots
+  const spots = [
+    [1,2],[9,2],[1,6],[9,6],[2,12],[8,12],[1,18],[9,18]
+  ];
+  spots.forEach(([x,y])=>{world[y][x]=3; houses.push({tx:x,ty:y,hasEvent:false,cd:60});});
+  // store
+  world[14][5]=4; stores.push({tx:5,ty:14});
+  world[8][1]=4;  stores.push({tx:1,ty:8});
+  // trees — scatter
+  const treeSpots = [[3,1],[7,1],[0,3],[11,3],[3,5],[7,5],[0,9],[11,9],[4,13],[7,13],[0,15],[11,15],[3,17],[7,17],[0,19],[11,19]];
+  treeSpots.forEach(([x,y])=>{if(world[y][x]===0){world[y][x]=2;trees.push({tx:x,ty:y});}});
+}
+
+// ===== Entities =====
+const player = {x:0,y:0,vx:0,vy:0,speed:2.2,facing:"down"};
+const npcs = []; // {x,y,type,dx,dy,timer,dialog}
+function spawnNPCs(){
+  npcs.length=0;
+  npcs.push({x:4*TS,y:7*TS,type:"👮",name:"里長",dialog:"ㄟ那個誰，你 3F 又在煮麻油雞囉。",dx:0,dy:0,timer:0});
+  npcs.push({x:7*TS,y:11*TS,type:"👷",name:"水電工",dialog:"5F 水管我修好了，發票我 Line 給你。",dx:0,dy:0,timer:0});
+  npcs.push({x:2*TS,y:15*TS,type:"🧓",name:"大房東",dialog:"阿明啊，租金記得準時喔。",dx:0,dy:0,timer:0});
+  npcs.push({x:9*TS,y:5*TS,type:"🧑‍🎓",name:"學生租客",dialog:"房東！WiFi 密碼忘記了啦～",dx:0,dy:0,timer:0});
+}
+
+function placePlayerStart(){
+  // start on path
+  player.x = 5.5*TS; player.y = 10.5*TS;
+}
+
+// ===== Input =====
+const keys = {};
+window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true; if(e.key===" ")e.preventDefault();});
+window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
+
+// Virtual joystick
+const joy = document.getElementById("joy");
+const stick = document.getElementById("stick");
+let joyActive=false, joyDX=0, joyDY=0, joyStart={x:0,y:0};
+function joyStartF(e){
+  const t = e.touches?e.touches[0]:e;
+  const r = joy.getBoundingClientRect();
+  joyStart = {x:r.left+r.width/2, y:r.top+r.height/2};
+  joyActive=true; moveJoy(t);
+  e.preventDefault();
+}
+function joyMoveF(e){if(!joyActive)return;const t=e.touches?e.touches[0]:e;moveJoy(t);e.preventDefault();}
+function joyEndF(){joyActive=false;joyDX=0;joyDY=0;stick.style.transform="translate(0,0)";}
+function moveJoy(t){
+  let dx=t.clientX-joyStart.x, dy=t.clientY-joyStart.y;
+  const mag=Math.hypot(dx,dy), max=38;
+  if(mag>max){dx=dx/mag*max; dy=dy/mag*max;}
+  stick.style.transform=`translate(${dx}px,${dy}px)`;
+  joyDX=dx/max; joyDY=dy/max;
+}
+joy.addEventListener("touchstart",joyStartF);
+joy.addEventListener("touchmove",joyMoveF);
+joy.addEventListener("touchend",joyEndF);
+joy.addEventListener("mousedown",joyStartF);
+window.addEventListener("mousemove",joyMoveF);
+window.addEventListener("mouseup",joyEndF);
+
+// Action button
+document.getElementById("act").addEventListener("click",doAction);
+
+// ===== Collision =====
+function tileAt(px,py){
+  const tx = Math.floor(px/TS), ty = Math.floor(py/TS);
+  if(tx<0||tx>=TILES_X||ty<0||ty>=TILES_Y) return 9;
+  return world[ty][tx];
+}
+function blocked(px,py){
+  const t = tileAt(px,py);
+  return t===2 || t===3 || t===9; // trees, houses, out of bounds
+}
+function tryMove(ent, dx, dy){
+  const nx = ent.x+dx, ny = ent.y+dy;
+  const r = TS*0.3;
+  // X axis
+  if(!blocked(nx-r, ent.y-r) && !blocked(nx+r, ent.y-r) && !blocked(nx-r, ent.y+r) && !blocked(nx+r, ent.y+r)) ent.x=nx;
+  if(!blocked(ent.x-r, ny-r) && !blocked(ent.x+r, ny-r) && !blocked(ent.x-r, ny+r) && !blocked(ent.x+r, ny+r)) ent.y=ny;
+}
+
+// ===== Game Logic =====
 function pickEvent(){
-  const pool=EVENTS.filter(e=>!STATE.seen.includes(e.id));
+  const pool=EVENTS.filter(e=>!S.seen.includes(e.id));
   const src=pool.length?pool:EVENTS;
   const ev=src[Math.floor(Math.random()*src.length)];
-  if(pool.length) STATE.seen.push(ev.id);
+  if(pool.length) S.seen.push(ev.id);
   return ev;
 }
 
-function applyChoice(ev,c){
-  STATE.cash+=c.cash||0;
-  STATE.rep=clamp(STATE.rep+(c.rep||0),0,100);
-  STATE.hp=clamp(STATE.hp+(c.hp||0),0,100);
-  STATE.log.unshift(`Day ${STATE.day}｜${ev.title} → ${c.text}`);
-  const p=[];
-  if(c.cash) p.push((c.cash>0?"+":"")+"$"+c.cash.toLocaleString());
-  if(c.rep) p.push((c.rep>0?"+":"")+c.rep+" 聲譽");
-  if(c.hp) p.push((c.hp>0?"+":"")+c.hp+" 體力");
-  if(p.length) fx(p.join("  "), (c.cash<0||c.rep<0||c.hp<0)?"#ff8b70":"#9ad17f");
-  endOfDay();
+function spawnEvent(){
+  // pick a random house without active event
+  const avail = houses.filter(h=>!h.hasEvent);
+  if(!avail.length) return;
+  const h = avail[Math.floor(Math.random()*avail.length)];
+  h.hasEvent = true;
+  h.event = pickEvent();
+  toast(`🏠 ${h.event.title}`);
 }
 
-function endOfDay(){
-  STATE.cash+=STATE.rooms*900;
-  STATE.hp=clamp(STATE.hp+4,0,100);
-  STATE.day++;
-  checkEnd();
-  if(!STATE.gameover) renderDay();
+function nearestInteract(){
+  // check houses with event, stores, npcs within range
+  const pr = TS*1.1;
+  // houses with event
+  for(const h of houses){
+    if(h.hasEvent){
+      const cx=h.tx*TS+TS/2, cy=h.ty*TS+TS/2;
+      if(Math.hypot(player.x-cx,player.y-cy)<pr) return {type:"event", target:h};
+    }
+  }
+  for(const s of stores){
+    const cx=s.tx*TS+TS/2, cy=s.ty*TS+TS/2;
+    if(Math.hypot(player.x-cx,player.y-cy)<pr) return {type:"store", target:s};
+  }
+  for(const n of npcs){
+    if(Math.hypot(player.x-n.x,player.y-n.y)<pr) return {type:"npc", target:n};
+  }
+  return null;
 }
 
-function checkEnd(){
-  if(STATE.cash<-20000){STATE.gameover=true;STATE.endMsg="資金斷鏈，被大房東掃地出門。";}
-  else if(STATE.rep<=0){STATE.gameover=true;STATE.endMsg="聲譽歸零，爆料公社頭版，再也沒人要租你的房。";}
-  else if(STATE.hp<=0){STATE.gameover=true;STATE.endMsg="過勞送醫，決定退出房東圈改賣雞排。";}
-  else if(STATE.day>STATE.maxDay){STATE.gameover=true;STATE.win=true;STATE.endMsg="你撐過了 30 天。恭喜，你正式成為一名合格的租賃管理人員。";}
-  if(STATE.gameover) renderEnd();
+function doAction(){
+  if(S.inEvent||S.gameover) return;
+  const hit = nearestInteract();
+  if(!hit) return;
+  if(hit.type==="event"){ openEvent(hit.target); }
+  else if(hit.type==="store"){
+    if(S.cash<300){toast("便利商店：$300 不夠");return;}
+    S.cash-=300; S.hp=Math.min(100,S.hp+30);
+    fx("+30 體力 (-$300)", "#9ad17f");
+    updateHUD();
+  }
+  else if(hit.type==="npc"){
+    toast(`${hit.target.type} ${hit.target.name}：${hit.target.dialog}`);
+  }
 }
 
-function resetState(){Object.assign(STATE,{day:1,cash:50000,rep:60,hp:100,rooms:5,seen:[],log:[],gameover:false,win:false,endMsg:""});}
-
-function renderIntro(){
-  const app=document.getElementById("app");
-  app.innerHTML=`
-  <div class="screen center">
-    <div class="trees"></div>
-    <div class="z10" style="width:100%;max-width:380px;">
-      <div class="brand-small">A GAME BY @a0921925365</div>
-      <h1 class="title-logo title-xl" style="color:var(--beige);">租賃管理<br/>人員的人森</h1>
-      <div class="subtitle">這不是人生，是人森 — 代管房東的日常修羅場</div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="label">遊戲說明</div>
-        <div class="body">
-          你是台北某區的二房東／代管，手上 5 間房、現金 5 萬、聲譽 60、體力 100。<br/>
-          每天會發生一件事。你的選擇影響數值。<br/>
-          <b>撐滿 30 天，你就贏了。</b>
-        </div>
-      </div>
-      <button class="btn-primary" id="startBtn">開始今天的輪班</button>
-      <div class="foot">靈感：所有被半夜 Line 吵醒的房東</div>
-    </div>
-  </div>`;
-  document.getElementById("startBtn").onclick=()=>{resetState();renderDay();};
-}
-
-function statBar(label,val,color){
-  const pct=Math.max(0,Math.min(100,val));
-  return `<div class="stat-pill"><div class="stat-row"><span>${label}</span><span>${val}</span></div><div class="bar"><i style="width:${pct}%;background:${color}"></i></div></div>`;
-}
-
-function renderDay(){
-  const ev=pickEvent();
-  const app=document.getElementById("app");
-  app.innerHTML=`
-  <div class="screen fade-in">
-    <div class="header">
-      <div class="header-row">
-        <div>
-          <div class="day-tag">DAY ${STATE.day} / ${STATE.maxDay}</div>
-          <div class="title-logo title-md" style="color:var(--beige);">租賃管理人員的人森</div>
-        </div>
-        <div>
-          <div class="cash-label">現金</div>
-          <div class="cash-val ${STATE.cash<0?'neg':''}">$${STATE.cash.toLocaleString()}</div>
-        </div>
-      </div>
-      <div class="stats">
-        ${statBar("聲譽",STATE.rep,"#9ad17f")}
-        ${statBar("體力",STATE.hp,"#e8b84a")}
-        <div class="stat-pill narrow"><div class="rooms"><div class="stat-row" style="justify-content:center;">房源</div><div class="n">${STATE.rooms} 間</div></div></div>
-      </div>
-    </div>
-    <div class="body-area">
-      <div class="event-card">
-        <div class="event-meta">
-          <span class="tag">${ev.tag}</span>
-          <span class="event-time">${ev.time}</span>
-        </div>
-        <h2 class="event-title">${ev.title}</h2>
-        <p class="event-desc">${ev.desc}</p>
-      </div>
-      <div class="choices-label">選擇你的處理方式</div>
-      <div id="choices"></div>
-    </div>
-  </div>`;
-  const ch=document.getElementById("choices");
+function openEvent(h){
+  S.inEvent=true;
+  const ev = h.event;
+  const bg = document.createElement("div");
+  bg.className="modal-bg";
+  bg.innerHTML = `<div class="modal"><div class="modal-inner">
+    <div class="modal-meta"><span class="tag">${ev.tag}</span><span class="m-time">${ev.time}</span></div>
+    <h2 class="m-title">${ev.title}</h2>
+    <p class="m-desc">${ev.desc}</p>
+    <div id="chs"></div>
+  </div></div>`;
+  document.getElementById("stage").appendChild(bg);
+  const chs = bg.querySelector("#chs");
   ev.choices.forEach(c=>{
-    const b=el(`<button class="choice">
-      <div class="choice-text">${c.text}</div>
-      <div class="choice-note">${c.note||""}</div>
-      <div class="choice-deltas">
+    const b = document.createElement("button");
+    b.className="choice";
+    b.innerHTML = `<div class="ch-text">${c.text}</div><div class="ch-note">${c.note||""}</div>
+      <div class="ch-deltas">
         ${c.cash?`<span class="${c.cash<0?'neg':'pos'}">${c.cash<0?'':'+'}$${c.cash.toLocaleString()}</span>`:""}
         ${c.rep?`<span class="${c.rep<0?'neg':'pos'}">${c.rep<0?'':'+'}${c.rep} 聲譽</span>`:""}
         ${c.hp?`<span class="${c.hp<0?'neg':'pos'}">${c.hp<0?'':'+'}${c.hp} 體力</span>`:""}
-      </div>
-    </button>`);
-    b.onclick=()=>applyChoice(ev,c);
-    ch.appendChild(b);
+      </div>`;
+    b.onclick = ()=>{applyChoice(ev,c); bg.remove(); h.hasEvent=false; h.event=null; S.inEvent=false; checkEnd();};
+    chs.appendChild(b);
   });
 }
 
-function renderEnd(){
-  const app=document.getElementById("app");
-  app.innerHTML=`
-  <div class="screen center">
-    <div class="trees"></div>
-    <div class="z10" style="width:100%;max-width:380px;">
-      <div class="end-tag ${STATE.win?'win':'lose'}">${STATE.win?"GAME CLEAR":"GAME OVER"}</div>
-      <h1 class="title-logo title-lg" style="color:var(--beige);">${STATE.win?"你撐住了":"人森，暫停"}</h1>
-      <div class="card">
-        <div class="body" style="margin-bottom:12px;">${STATE.endMsg}</div>
-        <div class="end-stats">
-          <div>撐了 <b>${STATE.day-1}</b> 天</div>
-          <div>現金 <b>$${STATE.cash.toLocaleString()}</b></div>
-          <div>聲譽 <b>${STATE.rep}</b></div>
-          <div>體力 <b>${STATE.hp}</b></div>
-        </div>
-      </div>
-      <div class="card log-card">
-        <div class="label">今回合日誌</div>
-        ${STATE.log.slice(0,10).map(l=>`<div class="log-item">· ${l}</div>`).join("")}
-      </div>
-      <div class="end-row">
-        <button class="btn-primary" id="againBtn">再來一輪</button>
-        <button class="btn-ghost" id="shareBtn">分享戰績</button>
-      </div>
-      <div class="foot">追蹤 @a0921925365 看更多代管日常</div>
-    </div>
-  </div>`;
-  document.getElementById("againBtn").onclick=()=>{resetState();renderDay();};
-  document.getElementById("shareBtn").onclick=()=>{
-    const t=`我在《租賃管理人員的人森》撐了 ${STATE.day-1} 天｜現金 $${STATE.cash}｜聲譽 ${STATE.rep}｜體力 ${STATE.hp}\n${STATE.endMsg}`;
-    if(navigator.share){navigator.share({title:"租賃管理人員的人森",text:t}).catch(()=>{});}
-    else{try{navigator.clipboard.writeText(t);alert("戰績已複製！");}catch(e){alert(t);}}
-  };
+function applyChoice(ev,c){
+  S.cash += c.cash||0;
+  S.rep = Math.max(0,Math.min(100,S.rep+(c.rep||0)));
+  S.hp = Math.max(0,Math.min(100,S.hp+(c.hp||0)));
+  S.log.unshift(`Day ${S.day}｜${ev.title} → ${c.text}`);
+  const parts=[];
+  if(c.cash) parts.push((c.cash>0?"+":"")+"$"+c.cash.toLocaleString());
+  if(c.rep) parts.push((c.rep>0?"+":"")+c.rep+" 聲譽");
+  if(c.hp) parts.push((c.hp>0?"+":"")+c.hp+" 體力");
+  if(parts.length) fx(parts.join("  "), (c.cash<0||c.rep<0||c.hp<0)?"#ff8b70":"#9ad17f");
+  updateHUD();
 }
 
-renderIntro();
+function advanceDay(){
+  // daily rent income
+  S.cash += S.rooms*900;
+  S.day++;
+  S.dayTimer = 0;
+  toast(`☀️ Day ${S.day}｜今日租金 +$${S.rooms*900}`);
+  // spawn 1-2 events for the new day
+  spawnEvent();
+  if(Math.random()<0.4) setTimeout(spawnEvent, 3000);
+  updateHUD();
+  checkEnd();
+}
+
+function checkEnd(){
+  if(S.inEvent) return;
+  if(S.cash<-20000){end(false,"資金斷鏈，被大房東掃地出門。");}
+  else if(S.rep<=0){end(false,"聲譽歸零，爆料公社頭版，再也沒人要租你的房。");}
+  else if(S.hp<=0){end(false,"過勞送醫，決定退出房東圈改賣雞排。");}
+  else if(S.day>S.maxDay){end(true,"你撐過了 30 天。恭喜，你正式成為一名合格的租賃管理人員。");}
+}
+
+function end(win,msg){
+  S.gameover=true; S.win=win; S.endMsg=msg; S.running=false;
+  saveGame();
+  const es = document.getElementById("endScr");
+  es.classList.remove("hide");
+  document.getElementById("endTag").className = "end-tag "+(win?"win":"lose");
+  document.getElementById("endTag").textContent = win?"GAME CLEAR":"GAME OVER";
+  document.getElementById("endTitle").textContent = win?"你撐住了":"人森，暫停";
+  document.getElementById("endMsg").textContent = msg;
+  document.getElementById("endStats").innerHTML = `
+    <div>撐了 <b>${S.day-1}</b> 天</div>
+    <div>現金 <b>$${S.cash.toLocaleString()}</b></div>
+    <div>聲譽 <b>${S.rep}</b></div>
+    <div>體力 <b>${S.hp}</b></div>
+    <div style="grid-column:1/-1;">歷史最佳：<b>${getBest()} 天</b></div>`;
+}
+
+function updateHUD(){
+  document.getElementById("dayNum").textContent = S.day;
+  const cE=document.getElementById("cash");
+  cE.textContent = "$"+S.cash.toLocaleString();
+  cE.className = "cash"+(S.cash<0?" neg":"");
+  document.getElementById("repN").textContent = S.rep;
+  document.getElementById("hpN").textContent = S.hp;
+  document.getElementById("rmN").textContent = S.rooms;
+  document.getElementById("repBar").style.width = S.rep+"%";
+  document.getElementById("hpBar").style.width = S.hp+"%";
+}
+
+function toast(text){
+  const t = document.getElementById("toast");
+  const m = document.createElement("div");
+  m.className="msg"; m.textContent=text;
+  t.appendChild(m);
+  setTimeout(()=>m.remove(),2000);
+}
+
+function fx(text,color){
+  const d=document.createElement("div");
+  d.className="delta";d.style.color=color;d.textContent=text;
+  document.getElementById("stage").appendChild(d);
+  setTimeout(()=>d.remove(),1400);
+}
+
+// ===== Rendering =====
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // camera follows player, centered
+  const camX = Math.max(0, Math.min(TILES_X*TS - W, player.x - W/2));
+  const camY = Math.max(0, Math.min(TILES_Y*TS - (H-100), player.y - (H-100)/2 - 40));
+
+  // tiles
+  for(let y=0;y<TILES_Y;y++){
+    for(let x=0;x<TILES_X;x++){
+      const t = world[y][x];
+      const sx = x*TS - camX, sy = y*TS - camY;
+      if(sx<-TS||sy<-TS||sx>W||sy>H) continue;
+      // grass base
+      ctx.fillStyle = (x+y)%2===0?"#2d4a35":"#324f3a";
+      ctx.fillRect(sx,sy,TS,TS);
+      if(t===1){ // path
+        ctx.fillStyle="#8c7a4e";
+        ctx.fillRect(sx,sy,TS,TS);
+        ctx.fillStyle="#9b8958";
+        for(let i=0;i<4;i++){ctx.fillRect(sx+i*9,sy+i*7,3,3);}
+      }
+      if(t===2){ // tree
+        ctx.font=(TS-4)+"px serif";
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText("🌳", sx+TS/2, sy+TS/2);
+      }
+      if(t===3){ // house
+        ctx.font=(TS-2)+"px serif";
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText("🏠", sx+TS/2, sy+TS/2);
+      }
+      if(t===4){ // store
+        ctx.font=(TS-2)+"px serif";
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText("🏪", sx+TS/2, sy+TS/2);
+      }
+    }
+  }
+  // event markers (bouncing ⚠️ above houses)
+  const bob = Math.sin(S.tick*0.15)*3;
+  houses.forEach(h=>{
+    if(h.hasEvent){
+      const sx = h.tx*TS - camX + TS/2;
+      const sy = h.ty*TS - camY - 4 + bob;
+      ctx.font=(TS*0.6)+"px serif";
+      ctx.textAlign="center";ctx.textBaseline="bottom";
+      ctx.fillText("⚠️", sx, sy);
+    }
+  });
+  // npcs
+  npcs.forEach(n=>{
+    const sx = n.x-camX, sy = n.y-camY;
+    ctx.font=(TS-6)+"px serif";
+    ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(n.type, sx, sy);
+  });
+  // player
+  const psx = player.x-camX, psy = player.y-camY;
+  // shadow
+  ctx.fillStyle="rgba(0,0,0,.3)";
+  ctx.beginPath();ctx.ellipse(psx, psy+TS/2-2, TS*0.3, TS*0.1, 0, 0, Math.PI*2);ctx.fill();
+  ctx.font=(TS-4)+"px serif";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  const bobP = Math.abs(Math.sin(S.tick*0.3))*2;
+  ctx.fillText("🧑‍💼", psx, psy-bobP);
+
+  // interact indicator
+  const hit = nearestInteract();
+  const act = document.getElementById("act");
+  if(hit && !S.inEvent){
+    act.disabled=false;
+    if(hit.type==="event") act.textContent="處理";
+    else if(hit.type==="store") act.textContent="補血";
+    else act.textContent="交談";
+    // ring around target
+    const t = hit.target;
+    let cx, cy;
+    if(hit.type==="npc"){cx=t.x-camX; cy=t.y-camY;}
+    else {cx=t.tx*TS-camX+TS/2; cy=t.ty*TS-camY+TS/2;}
+    ctx.strokeStyle="rgba(201,162,74,.8)";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.arc(cx,cy, TS*0.65 + Math.sin(S.tick*0.2)*2, 0, Math.PI*2);
+    ctx.stroke();
+  } else {
+    act.disabled=true;
+    act.textContent="互動";
+  }
+
+  // day progress bar at top (under HUD)
+  const barW = W-24, barH = 3;
+  ctx.fillStyle = "rgba(0,0,0,.3)";
+  ctx.fillRect(12, 90, barW, barH);
+  ctx.fillStyle = "#c9a24a";
+  ctx.fillRect(12, 90, barW*(S.dayTimer/S.dayLen), barH);
+}
+
+// ===== Loop =====
+function update(){
+  if(!S.running) return;
+  S.tick++;
+
+  if(!S.inEvent){
+    // input direction
+    let dx=0, dy=0;
+    if(keys["arrowleft"]||keys["a"]) dx-=1;
+    if(keys["arrowright"]||keys["d"]) dx+=1;
+    if(keys["arrowup"]||keys["w"]) dy-=1;
+    if(keys["arrowdown"]||keys["s"]) dy+=1;
+    if(Math.abs(joyDX)>0.1) dx = joyDX;
+    if(Math.abs(joyDY)>0.1) dy = joyDY;
+    const mag = Math.hypot(dx,dy);
+    if(mag>0){dx/=mag; dy/=mag;}
+    tryMove(player, dx*player.speed, dy*player.speed);
+
+    // keyboard action
+    if(keys[" "]){keys[" "]=false; doAction();}
+
+    // NPC wander
+    npcs.forEach(n=>{
+      n.timer--;
+      if(n.timer<=0){
+        n.timer = 60+Math.random()*120;
+        const dirs=[[1,0],[-1,0],[0,1],[0,-1],[0,0]];
+        const d = dirs[Math.floor(Math.random()*dirs.length)];
+        n.dx=d[0]*0.6; n.dy=d[1]*0.6;
+      }
+      tryMove(n, n.dx, n.dy);
+    });
+
+    // day timer
+    S.dayTimer++;
+    if(S.dayTimer>=S.dayLen){ advanceDay(); }
+
+    // HP drain over time
+    if(S.tick%180===0){ S.hp = Math.max(0, S.hp-1); updateHUD(); checkEnd(); }
+
+    // random event spawn (if few active)
+    const activeCount = houses.filter(h=>h.hasEvent).length;
+    if(S.tick%600===0 && activeCount<2 && Math.random()<0.6) spawnEvent();
+  }
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+// ===== Init / Start =====
+function startGame(){
+  resize();
+  Object.assign(S,{day:1,cash:50000,rep:60,hp:100,rooms:5,seen:[],log:[],gameover:false,win:false,endMsg:"",running:true,inEvent:false,tick:0,dayTimer:0});
+  genWorld();
+  spawnNPCs();
+  placePlayerStart();
+  document.getElementById("intro").classList.add("hide");
+  document.getElementById("endScr").classList.add("hide");
+  document.getElementById("hud").classList.remove("hide");
+  document.getElementById("joy").classList.remove("hide");
+  document.getElementById("act").classList.remove("hide");
+  updateHUD();
+  // seed first event
+  spawnEvent();
+  requestAnimationFrame(update);
+}
+
+document.getElementById("startBtn").onclick = startGame;
+document.getElementById("againBtn").onclick = startGame;
+document.getElementById("shareBtn").onclick = ()=>{
+  const t=`我在《租賃管理人員的人森 RPG》撐了 ${S.day-1} 天｜現金 $${S.cash}｜聲譽 ${S.rep}｜體力 ${S.hp}\n${S.endMsg}\nhttps://haohuei.github.io/rental-manager-life/`;
+  if(navigator.share){navigator.share({title:"租賃管理人員的人森 RPG",text:t}).catch(()=>{});}
+  else{try{navigator.clipboard.writeText(t);alert("戰績已複製！");}catch(e){alert(t);}}
+};
+
+resize();
 </script>
 </body>
 </html>
