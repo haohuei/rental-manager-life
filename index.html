@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>租賃管理人員的人森 — 代管房東的日常修羅場</title>
+<style>
+  :root{
+    color-scheme: light;
+    --forest-900:#0f1f17; --forest-800:#1a2e22; --forest-700:#243d2d;
+    --forest-500:#3d6b4a; --moss:#6b8e5a; --beige:#f1e9d2;
+    --beige-dim:#d9cfb4; --paper:#faf6ea; --warn:#c25a3b; --gold:#c9a24a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:#f5f2e8;min-height:100vh;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;color:#2a2a2a;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  .frame{max-width:430px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,#0f1f17 0%,#1a2e22 40%,#0f1f17 100%);position:relative;overflow:hidden;color:var(--beige);}
+  .frame::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 20% 10%,rgba(107,142,90,.15),transparent 40%),radial-gradient(circle at 80% 90%,rgba(107,142,90,.12),transparent 50%);pointer-events:none;}
+  .screen{position:relative;min-height:100vh;display:flex;flex-direction:column;}
+  .center{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;position:relative;}
+  .trees{position:absolute;bottom:0;left:0;right:0;height:120px;opacity:.25;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120'><g fill='%236b8e5a'><path d='M30 120 L30 70 L15 70 L30 40 L22 40 L35 15 L48 40 L40 40 L55 70 L40 70 L40 120 Z'/><path d='M100 120 L100 80 L80 80 L105 40 L95 40 L115 10 L135 40 L125 40 L150 80 L130 80 L130 120 Z'/><path d='M200 120 L200 75 L185 75 L200 45 L192 45 L205 20 L218 45 L210 45 L225 75 L210 75 L210 120 Z'/><path d='M290 120 L290 82 L270 82 L295 42 L285 42 L305 12 L325 42 L315 42 L340 82 L320 82 L320 120 Z'/><path d='M370 120 L370 70 L358 70 L370 42 L365 42 L375 20 L385 42 L380 42 L392 70 L380 70 L380 120 Z'/></g></svg>") no-repeat bottom/cover;pointer-events:none;}
+  .z10{position:relative;z-index:2;}
+  .brand-small{font-size:11px;letter-spacing:.4em;color:var(--moss);margin-bottom:12px;}
+  .title-logo{font-family:"Noto Serif TC",serif;letter-spacing:.08em;text-shadow:0 2px 10px rgba(0,0,0,.6);font-weight:900;line-height:1.1;}
+  .title-xl{font-size:46px;margin-bottom:8px;}
+  .title-lg{font-size:36px;margin-bottom:16px;}
+  .title-md{font-size:18px;}
+  .subtitle{font-size:13px;color:var(--beige-dim);margin-bottom:40px;}
+  .card{background:var(--paper);color:#2a2a2a;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 0 0 1px rgba(0,0,0,.05);padding:20px;text-align:left;}
+  .card .label{font-size:11px;letter-spacing:.25em;color:var(--forest-700);margin-bottom:8px;}
+  .card .body{font-size:14px;line-height:1.7;color:#333;}
+  .btn-primary{background:var(--moss);color:#0f1f17;font-weight:800;border-radius:10px;padding:14px 20px;box-shadow:0 4px 0 #4a6a3d;font-size:16px;width:100%;}
+  .btn-primary:active{transform:translateY(2px);box-shadow:0 2px 0 #4a6a3d;}
+  .btn-ghost{background:transparent;color:var(--beige);border:1px solid rgba(241,233,210,.3);border-radius:10px;padding:12px 16px;font-size:14px;}
+  .foot{margin-top:12px;font-size:11px;color:var(--beige-dim);}
+  .header{padding:20px 16px 12px;}
+  .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .day-tag{font-size:10px;letter-spacing:.3em;color:var(--moss);}
+  .cash-label{font-size:10px;color:var(--beige-dim);text-align:right;}
+  .cash-val{font-size:22px;font-weight:900;text-align:right;color:var(--gold);}
+  .cash-val.neg{color:var(--warn);}
+  .stats{display:flex;gap:8px;}
+  .stat-pill{background:rgba(241,233,210,.08);border:1px solid rgba(241,233,210,.15);border-radius:10px;padding:7px 10px;flex:1;}
+  .stat-pill.narrow{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:7px 14px;}
+  .stat-row{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.15em;color:var(--beige-dim);margin-bottom:4px;}
+  .bar{height:5px;border-radius:3px;background:rgba(0,0,0,.3);overflow:hidden;}
+  .bar>i{display:block;height:100%;transition:width .4s;}
+  .rooms{text-align:center;}
+  .rooms .n{font-size:14px;font-weight:800;color:var(--beige);}
+  .body-area{flex:1;padding:0 16px 24px;}
+  .event-card{background:var(--paper);color:#2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  .event-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .tag{display:inline-block;padding:3px 12px;border-radius:999px;font-size:11px;background:var(--forest-700);color:var(--beige);letter-spacing:.1em;}
+  .event-time{font-size:12px;color:#8a8578;}
+  .event-title{font-size:20px;font-weight:900;color:#1a1a1a;margin-bottom:8px;line-height:1.3;}
+  .event-desc{font-size:14px;color:#444;line-height:1.65;}
+  .choices-label{font-size:11px;letter-spacing:.25em;color:var(--beige-dim);margin:0 4px 8px;}
+  .choice{display:block;width:100%;text-align:left;background:#fff;border:1px solid #d9cfb4;border-radius:10px;padding:14px;margin-bottom:8px;transition:all .15s;}
+  .choice:active{transform:scale(.98);background:#f1e9d2;}
+  .choice:hover{border-color:var(--forest-500);box-shadow:0 2px 8px rgba(60,107,74,.25);}
+  .choice-text{font-weight:800;color:#1a1a1a;font-size:14px;margin-bottom:4px;}
+  .choice-note{font-size:11px;color:#666;line-height:1.5;}
+  .choice-deltas{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px;font-family:ui-monospace,monospace;}
+  .pos{color:#1a7a3d;}
+  .neg{color:#c2412b;}
+  .delta{position:fixed;left:50%;top:40%;transform:translateX(-50%);pointer-events:none;font-weight:900;font-size:30px;z-index:50;animation:float 1.4s ease-out forwards;text-shadow:0 2px 10px rgba(0,0,0,.5);}
+  @keyframes float{0%{opacity:0;transform:translate(-50%,10px);}20%{opacity:1;}100%{opacity:0;transform:translate(-50%,-50px);}}
+  .fade-in{animation:fade .4s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .end-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#444;margin-top:4px;}
+  .end-stats b{color:#1a1a1a;}
+  .log-card{max-height:200px;overflow-y:auto;margin:16px 0;}
+  .log-item{font-size:12px;color:#555;margin-bottom:4px;}
+  .end-row{display:flex;gap:8px;margin-top:4px;}
+  .end-row .btn-primary{flex:1;width:auto;}
+  .end-tag{font-size:11px;letter-spacing:.4em;margin-bottom:8px;}
+  .end-tag.win{color:var(--moss);}
+  .end-tag.lose{color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="frame" id="app"></div>
+<script>
+const EVENTS = [
+  {
+    "id": "toilet_2am",
+    "time": "02:14",
+    "title": "租客半夜 Line 轟炸",
+    "desc": "「房東！！！馬桶爆了！！！屎尿淹到客廳！！！」訊息連發 37 則，你剛睡著。",
+    "tag": "急件",
+    "choices": [
+      { "text": "穿拖鞋衝過去救火", "cash": -1500, "rep": 6, "hp": -20, "note": "親自處理，租客感動，但你明天要上班。" },
+      { "text": "叫 24 小時水電師傅", "cash": -4500, "rep": 3, "hp": -5, "note": "錢解決的事都是小事，但午夜加成價。" },
+      { "text": "回「明天早上處理」然後靜音", "cash": 0, "rep": -15, "hp": -8, "note": "Google 評論即將 +1 星（反向）。" }
+    ]
+  },
+  {
+    "id": "wifi_password",
+    "time": "09:30",
+    "title": "WiFi 密碼第 8 次",
+    "desc": "同一個租客第 8 次問 WiFi 密碼。你上週才貼在冰箱、門口、群組公告、租約附件。",
+    "tag": "日常",
+    "choices": [
+      { "text": "再貼心回一次", "cash": 0, "rep": 2, "hp": -3, "note": "佛系房東形象 +1。" },
+      { "text": "回「租約第 14 頁」", "cash": 0, "rep": -2, "hp": -1, "note": "租客覺得你冷漠。" },
+      { "text": "把 WiFi 密碼改成 'readTheContract'", "cash": 0, "rep": -5, "hp": 3, "note": "你爽了，但訊息會更多。" }
+    ]
+  },
+  {
+    "id": "neighbor_complaint",
+    "time": "14:00",
+    "title": "里長打來了",
+    "desc": "「ㄟ那個誰啊，你三樓的小姐半夜煮麻油雞味道飄到隔壁，鄰居說要去環保局檢舉喔。」",
+    "tag": "鄰里",
+    "choices": [
+      { "text": "親自上門勸導租客", "cash": 0, "rep": 5, "hp": -8, "note": "租客碎念你管太寬。" },
+      { "text": "送里長一盒鳳梨酥公關", "cash": -600, "rep": 8, "hp": -2, "note": "里長從此是你的人。" },
+      { "text": "裝沒聽到", "cash": 0, "rep": -8, "hp": 0, "note": "下週環保局真的來了。" }
+    ]
+  },
+  {
+    "id": "rent_overdue",
+    "time": "月初",
+    "title": "欠租第三個月",
+    "desc": "302 號房的工程師又說「這個月幣圈崩了，下個月補」。你聽過三次了。",
+    "tag": "金流",
+    "choices": [
+      { "text": "寄存證信函", "cash": -800, "rep": 0, "hp": -5, "note": "法律程序啟動，租客開始已讀不回。" },
+      { "text": "讓他分期還", "cash": 5000, "rep": 3, "hp": -3, "note": "拿回一部份，但可能再拖。" },
+      { "text": "換鎖+丟包行李到樓梯間", "cash": 0, "rep": -20, "hp": -10, "note": "違法。租客報警。你上新聞。" }
+    ]
+  },
+  {
+    "id": "ac_broken_summer",
+    "time": "15:30",
+    "title": "冷氣在 38 度掛了",
+    "desc": "全台熱浪，505 的冷氣噴出黑水然後停止運作。租客傳了融化的巧克力照片。",
+    "tag": "設備",
+    "choices": [
+      { "text": "當天叫師傅換新", "cash": -22000, "rep": 10, "hp": -5, "note": "租客感動到幫你寫 Google 五星。" },
+      { "text": "先借電風扇頂一週", "cash": -800, "rep": -5, "hp": -2, "note": "租客每天傳體感溫度給你。" },
+      { "text": "說要等預算", "cash": 0, "rep": -15, "hp": -8, "note": "租客開始找下一間。" }
+    ]
+  },
+  {
+    "id": "pet_smuggle",
+    "time": "20:00",
+    "title": "偷帶寵物被抓包",
+    "desc": "明明簽約寫不養寵物，你路過聽到 401 傳來柴犬叫聲，而且是三隻。",
+    "tag": "違約",
+    "choices": [
+      { "text": "加收寵物押金 1 個月", "cash": 18000, "rep": -3, "hp": -3, "note": "租客罵你趁火打劫但付了。" },
+      { "text": "裝沒看到", "cash": 0, "rep": -2, "hp": -1, "note": "下次鄰居檢舉時你很被動。" },
+      { "text": "要求 7 天內搬走", "cash": -18000, "rep": -8, "hp": -5, "note": "房子空一個月，重新找房客。" }
+    ]
+  },
+  {
+    "id": "big_landlord_sell",
+    "time": "下午茶時間",
+    "title": "大房東：我要賣了",
+    "desc": "你是二房東。大房東傳 Line：「阿明啊，我下個月要把這棟賣掉，你租客自己處理喔。」",
+    "tag": "二房東",
+    "choices": [
+      { "text": "談續約+優先承購權", "cash": -5000, "rep": 3, "hp": -10, "note": "律師費燒掉，但保住生意。" },
+      { "text": "開始偷偷找新物件轉移租客", "cash": -8000, "rep": 5, "hp": -15, "note": "累到爆肝，但保住 LTV。" },
+      { "text": "跟租客坦白，退押金", "cash": -45000, "rep": 12, "hp": -3, "note": "商譽無價。帳面哭哭。" }
+    ]
+  },
+  {
+    "id": "fire_inspection",
+    "time": "10:00",
+    "title": "消防安檢來敲門",
+    "desc": "穿制服的三個人站在門口。你頂樓加蓋那間、還有 5 樓打通的隔間，不太妙。",
+    "tag": "合法性",
+    "choices": [
+      { "text": "配合檢查+限期改善", "cash": -35000, "rep": 2, "hp": -8, "note": "痛，但一勞永逸。" },
+      { "text": "包個紅包試水溫", "cash": -5000, "rep": -5, "hp": -15, "note": "不建議。可能更糟。(風險事件)" },
+      { "text": "說屋主不在改天再來", "cash": 0, "rep": 0, "hp": -2, "note": "下週開罰單，金額未知。" }
+    ]
+  },
+  {
+    "id": "google_review",
+    "time": "滑手機時",
+    "title": "Google 一星評論",
+    "desc": "「黑心房東，押金不退還罵人。」評論者匿名，但你知道是誰。全名幾乎呼之欲出。",
+    "tag": "品牌",
+    "choices": [
+      { "text": "官方帳號理性回覆", "cash": 0, "rep": 5, "hp": -5, "note": "有潛在租客看到你的回應風度。" },
+      { "text": "私訊對方談", "cash": -3000, "rep": 3, "hp": -3, "note": "花錢消災，評論刪了。" },
+      { "text": "找朋友刷 20 則五星洗版", "cash": -2000, "rep": -3, "hp": 0, "note": "被看出是假的風險存在。" }
+    ]
+  },
+  {
+    "id": "typhoon_leak",
+    "time": "凌晨",
+    "title": "颱風夜全棟漏水",
+    "desc": "山陀兒颱風外圍環流。6 間房有 4 間傳漏水照片。你的 Line 變災情回報群組。",
+    "tag": "天災",
+    "choices": [
+      { "text": "連夜叫防水師傅", "cash": -28000, "rep": 10, "hp": -25, "note": "你快死了但房子保住了。" },
+      { "text": "發水桶跟毛巾公關", "cash": -3000, "rep": 3, "hp": -5, "note": "撐過今晚再說。" },
+      { "text": "回「颱風假不處理」", "cash": 0, "rep": -18, "hp": -3, "note": "三個租客決定不續約。" }
+    ]
+  },
+  {
+    "id": "haggle_tenant",
+    "time": "看房中",
+    "title": "新客人殺價殺到見骨",
+    "desc": "開 18,000 他出 13,500，還說「我是學生欸房東」。但你知道他剛買了 iPhone 新機。",
+    "tag": "成交",
+    "choices": [
+      { "text": "堅持原價", "cash": 0, "rep": 0, "hp": -2, "note": "他說回去考慮。多半不會回來。" },
+      { "text": "降到 16,500 送清潔", "cash": 16500, "rep": 2, "hp": -3, "note": "成交。多一個房客不會空租。" },
+      { "text": "直接 15,000 了事", "cash": 15000, "rep": -2, "hp": -1, "note": "被同業知道會笑你。" }
+    ]
+  },
+  {
+    "id": "trashed_apartment",
+    "time": "退房點交",
+    "title": "退租日：整屋垃圾",
+    "desc": "租客搬走留下 42 袋垃圾、牆上三個洞、冰箱裡發霉的珍奶、以及一股神秘氣味。",
+    "tag": "點交",
+    "choices": [
+      { "text": "從押金扣清潔+修繕", "cash": 8000, "rep": -3, "hp": -5, "note": "租客威脅告你惡意扣押金。" },
+      { "text": "自己摸摸鼻子清", "cash": -6000, "rep": 2, "hp": -20, "note": "你清了兩天。背快斷。" },
+      { "text": "外包清潔公司全包", "cash": -12000, "rep": 0, "hp": -5, "note": "省時間但毛利被吃掉。" }
+    ]
+  },
+  {
+    "id": "tax_letter",
+    "time": "信箱",
+    "title": "國稅局來函",
+    "desc": "「請於文到 15 日內說明近 3 年租賃所得申報情形。」信封上有紅色章。",
+    "tag": "合規",
+    "choices": [
+      { "text": "找會計師全盤整理", "cash": -15000, "rep": 2, "hp": -8, "note": "睡得著覺。長期是對的。" },
+      { "text": "自己上網查怎麼回", "cash": -2000, "rep": 0, "hp": -15, "note": "三個晚上沒睡。" },
+      { "text": "拖著不回", "cash": 0, "rep": -5, "hp": -3, "note": "罰款正在路上。" }
+    ]
+  },
+  {
+    "id": "party_night",
+    "time": "23:50",
+    "title": "樓上開 Party",
+    "desc": "503 大學生生日趴，20 幾個人唱歌尖叫。你 Line 群組 5 分鐘爆 80 則投訴。",
+    "tag": "鄰里",
+    "choices": [
+      { "text": "親自上樓制止", "cash": 0, "rep": 3, "hp": -10, "note": "被嗆「房東掃興」但確實安靜了。" },
+      { "text": "叫警察", "cash": 0, "rep": -2, "hp": -2, "note": "租客恨你。鄰居愛你。" },
+      { "text": "群組道歉請大家忍耐", "cash": 0, "rep": -8, "hp": -3, "note": "三個鄰居說要搬。" }
+    ]
+  },
+  {
+    "id": "roach_outbreak",
+    "time": "深夜廚房",
+    "title": "蟑螂大爆發",
+    "desc": "402 傳來一張 20 隻蟑螂集體爬牆的照片。租客說要立刻搬走否則告你。",
+    "tag": "環境",
+    "choices": [
+      { "text": "叫專業除蟲全棟做", "cash": -18000, "rep": 8, "hp": -3, "note": "一次做完根除問題。" },
+      { "text": "送殺蟲劑叫租客自己噴", "cash": -500, "rep": -8, "hp": 0, "note": "租客超不爽。你很快還會收到更多照片。" },
+      { "text": "說是她自己不打掃", "cash": 0, "rep": -12, "hp": -2, "note": "租客拿去爆料公社。" }
+    ]
+  },
+  {
+    "id": "agent_fee",
+    "time": "電話",
+    "title": "仲介：這個很棒喔",
+    "desc": "「房東我這邊有個科技業的穩定租客，就是我要抽半個月仲介費喔。」",
+    "tag": "成交",
+    "choices": [
+      { "text": "付半個月費用成交", "cash": 10000, "rep": 2, "hp": -1, "note": "穩定租客值得。" },
+      { "text": "殺到三分之一", "cash": 13000, "rep": 1, "hp": -3, "note": "仲介記仇但成交。" },
+      { "text": "拒絕自己找", "cash": 0, "rep": 0, "hp": -5, "note": "房子多空兩週。" }
+    ]
+  },
+  {
+    "id": "haunted_news",
+    "time": "新聞推播",
+    "title": "租客意外身故",
+    "desc": "603 的中年租客獨居猝逝。警察、家屬、新聞車都來了。房間可能變凶宅。",
+    "tag": "重大",
+    "choices": [
+      { "text": "全程協助家屬+誠意處理", "cash": -25000, "rep": 15, "hp": -20, "note": "長遠看對你好。短期很沉重。" },
+      { "text": "快速清理後低調重租", "cash": -8000, "rep": -5, "hp": -10, "note": "下任租客查到會告你隱匿。" },
+      { "text": "整間封起來一年", "cash": -40000, "rep": 2, "hp": -5, "note": "心安但現金流很痛。" }
+    ]
+  },
+  {
+    "id": "roommate_fight",
+    "time": "下午",
+    "title": "分租室友大戰",
+    "desc": "A 說 B 偷她的優格、B 說 A 洗澡 50 分鐘。兩人要你當包青天。",
+    "tag": "分租",
+    "choices": [
+      { "text": "開協調會立公約", "cash": 0, "rep": 5, "hp": -8, "note": "耗時但有效。" },
+      { "text": "各打五十大板", "cash": 0, "rep": -3, "hp": -2, "note": "兩個都恨你。" },
+      { "text": "叫其中一個搬", "cash": -15000, "rep": -5, "hp": -3, "note": "少一個房客，但耳根清淨。" }
+    ]
+  },
+  {
+    "id": "gas_check_fail",
+    "time": "早上",
+    "title": "瓦斯安檢沒過",
+    "desc": "瓦斯公司貼紅單：「熱水器裝室內，限期改善否則斷氣。」3 戶受影響。",
+    "tag": "合法性",
+    "choices": [
+      { "text": "改外推+換強排", "cash": -32000, "rep": 5, "hp": -8, "note": "一勞永逸且合法。" },
+      { "text": "拖著看能不能過", "cash": 0, "rep": -5, "hp": -5, "note": "下週真的斷氣。租客暴怒。" },
+      { "text": "改成電熱水器", "cash": -45000, "rep": 3, "hp": -10, "note": "更貴但最安全。" }
+    ]
+  },
+  {
+    "id": "scam_tenant",
+    "time": "簽約時",
+    "title": "疑似詐騙新客",
+    "desc": "新客人要簽約但一直閃躲身分證正本，說要用「公司名義承租」但公司查不到。",
+    "tag": "風控",
+    "choices": [
+      { "text": "堅持要正本+聯徵", "cash": 0, "rep": 2, "hp": -3, "note": "對方消失。你躲過一劫。" },
+      { "text": "收 2 個月押金就收", "cash": 36000, "rep": -3, "hp": -2, "note": "可能是地下工廠或八大。觀望。" },
+      { "text": "直接收", "cash": 18000, "rep": -5, "hp": -5, "note": "下個月警察來找人。" }
+    ]
+  },
+  {
+    "id": "aircon_old_lady",
+    "time": "電話",
+    "title": "阿姨租客：電費怎麼這麼貴",
+    "desc": "「房東啊，這個月電費 4800 元是不是你算錯？我一個人住欸！」她冷氣開 24 小時。",
+    "tag": "金流",
+    "choices": [
+      { "text": "印出度數明細耐心解釋", "cash": 0, "rep": 3, "hp": -5, "note": "她還是不信但付了。" },
+      { "text": "吸收 1000 元息事寧人", "cash": -1000, "rep": 2, "hp": 0, "note": "她下個月繼續抱怨。" },
+      { "text": "回「冷氣開那麼久當然貴」", "cash": 0, "rep": -5, "hp": 1, "note": "她決定搬走。省電費但空租。" }
+    ]
+  }
+];
+
+const STATE = {
+  day:1, maxDay:30, cash:50000, rep:60, hp:100, rooms:5,
+  seen:[], log:[], gameover:false, win:false, endMsg:""
+};
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function el(h){const d=document.createElement("div");d.innerHTML=h.trim();return d.firstChild;}
+function fx(text,color){const d=document.createElement("div");d.className="delta";d.style.color=color;d.textContent=text;document.body.appendChild(d);setTimeout(()=>d.remove(),1400);}
+
+function pickEvent(){
+  const pool=EVENTS.filter(e=>!STATE.seen.includes(e.id));
+  const src=pool.length?pool:EVENTS;
+  const ev=src[Math.floor(Math.random()*src.length)];
+  if(pool.length) STATE.seen.push(ev.id);
+  return ev;
+}
+
+function applyChoice(ev,c){
+  STATE.cash+=c.cash||0;
+  STATE.rep=clamp(STATE.rep+(c.rep||0),0,100);
+  STATE.hp=clamp(STATE.hp+(c.hp||0),0,100);
+  STATE.log.unshift(`Day ${STATE.day}｜${ev.title} → ${c.text}`);
+  const p=[];
+  if(c.cash) p.push((c.cash>0?"+":"")+"$"+c.cash.toLocaleString());
+  if(c.rep) p.push((c.rep>0?"+":"")+c.rep+" 聲譽");
+  if(c.hp) p.push((c.hp>0?"+":"")+c.hp+" 體力");
+  if(p.length) fx(p.join("  "), (c.cash<0||c.rep<0||c.hp<0)?"#ff8b70":"#9ad17f");
+  endOfDay();
+}
+
+function endOfDay(){
+  STATE.cash+=STATE.rooms*900;
+  STATE.hp=clamp(STATE.hp+4,0,100);
+  STATE.day++;
+  checkEnd();
+  if(!STATE.gameover) renderDay();
+}
+
+function checkEnd(){
+  if(STATE.cash<-20000){STATE.gameover=true;STATE.endMsg="資金斷鏈，被大房東掃地出門。";}
+  else if(STATE.rep<=0){STATE.gameover=true;STATE.endMsg="聲譽歸零，爆料公社頭版，再也沒人要租你的房。";}
+  else if(STATE.hp<=0){STATE.gameover=true;STATE.endMsg="過勞送醫，決定退出房東圈改賣雞排。";}
+  else if(STATE.day>STATE.maxDay){STATE.gameover=true;STATE.win=true;STATE.endMsg="你撐過了 30 天。恭喜，你正式成為一名合格的租賃管理人員。";}
+  if(STATE.gameover) renderEnd();
+}
+
+function resetState(){Object.assign(STATE,{day:1,cash:50000,rep:60,hp:100,rooms:5,seen:[],log:[],gameover:false,win:false,endMsg:""});}
+
+function renderIntro(){
+  const app=document.getElementById("app");
+  app.innerHTML=`
+  <div class="screen center">
+    <div class="trees"></div>
+    <div class="z10" style="width:100%;max-width:380px;">
+      <div class="brand-small">A GAME BY @a0921925365</div>
+      <h1 class="title-logo title-xl" style="color:var(--beige);">租賃管理<br/>人員的人森</h1>
+      <div class="subtitle">這不是人生，是人森 — 代管房東的日常修羅場</div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="label">遊戲說明</div>
+        <div class="body">
+          你是台北某區的二房東／代管，手上 5 間房、現金 5 萬、聲譽 60、體力 100。<br/>
+          每天會發生一件事。你的選擇影響數值。<br/>
+          <b>撐滿 30 天，你就贏了。</b>
+        </div>
+      </div>
+      <button class="btn-primary" id="startBtn">開始今天的輪班</button>
+      <div class="foot">靈感：所有被半夜 Line 吵醒的房東</div>
+    </div>
+  </div>`;
+  document.getElementById("startBtn").onclick=()=>{resetState();renderDay();};
+}
+
+function statBar(label,val,color){
+  const pct=Math.max(0,Math.min(100,val));
+  return `<div class="stat-pill"><div class="stat-row"><span>${label}</span><span>${val}</span></div><div class="bar"><i style="width:${pct}%;background:${color}"></i></div></div>`;
+}
+
+function renderDay(){
+  const ev=pickEvent();
+  const app=document.getElementById("app");
+  app.innerHTML=`
+  <div class="screen fade-in">
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <div class="day-tag">DAY ${STATE.day} / ${STATE.maxDay}</div>
+          <div class="title-logo title-md" style="color:var(--beige);">租賃管理人員的人森</div>
+        </div>
+        <div>
+          <div class="cash-label">現金</div>
+          <div class="cash-val ${STATE.cash<0?'neg':''}">$${STATE.cash.toLocaleString()}</div>
+        </div>
+      </div>
+      <div class="stats">
+        ${statBar("聲譽",STATE.rep,"#9ad17f")}
+        ${statBar("體力",STATE.hp,"#e8b84a")}
+        <div class="stat-pill narrow"><div class="rooms"><div class="stat-row" style="justify-content:center;">房源</div><div class="n">${STATE.rooms} 間</div></div></div>
+      </div>
+    </div>
+    <div class="body-area">
+      <div class="event-card">
+        <div class="event-meta">
+          <span class="tag">${ev.tag}</span>
+          <span class="event-time">${ev.time}</span>
+        </div>
+        <h2 class="event-title">${ev.title}</h2>
+        <p class="event-desc">${ev.desc}</p>
+      </div>
+      <div class="choices-label">選擇你的處理方式</div>
+      <div id="choices"></div>
+    </div>
+  </div>`;
+  const ch=document.getElementById("choices");
+  ev.choices.forEach(c=>{
+    const b=el(`<button class="choice">
+      <div class="choice-text">${c.text}</div>
+      <div class="choice-note">${c.note||""}</div>
+      <div class="choice-deltas">
+        ${c.cash?`<span class="${c.cash<0?'neg':'pos'}">${c.cash<0?'':'+'}$${c.cash.toLocaleString()}</span>`:""}
+        ${c.rep?`<span class="${c.rep<0?'neg':'pos'}">${c.rep<0?'':'+'}${c.rep} 聲譽</span>`:""}
+        ${c.hp?`<span class="${c.hp<0?'neg':'pos'}">${c.hp<0?'':'+'}${c.hp} 體力</span>`:""}
+      </div>
+    </button>`);
+    b.onclick=()=>applyChoice(ev,c);
+    ch.appendChild(b);
+  });
+}
+
+function renderEnd(){
+  const app=document.getElementById("app");
+  app.innerHTML=`
+  <div class="screen center">
+    <div class="trees"></div>
+    <div class="z10" style="width:100%;max-width:380px;">
+      <div class="end-tag ${STATE.win?'win':'lose'}">${STATE.win?"GAME CLEAR":"GAME OVER"}</div>
+      <h1 class="title-logo title-lg" style="color:var(--beige);">${STATE.win?"你撐住了":"人森，暫停"}</h1>
+      <div class="card">
+        <div class="body" style="margin-bottom:12px;">${STATE.endMsg}</div>
+        <div class="end-stats">
+          <div>撐了 <b>${STATE.day-1}</b> 天</div>
+          <div>現金 <b>$${STATE.cash.toLocaleString()}</b></div>
+          <div>聲譽 <b>${STATE.rep}</b></div>
+          <div>體力 <b>${STATE.hp}</b></div>
+        </div>
+      </div>
+      <div class="card log-card">
+        <div class="label">今回合日誌</div>
+        ${STATE.log.slice(0,10).map(l=>`<div class="log-item">· ${l}</div>`).join("")}
+      </div>
+      <div class="end-row">
+        <button class="btn-primary" id="againBtn">再來一輪</button>
+        <button class="btn-ghost" id="shareBtn">分享戰績</button>
+      </div>
+      <div class="foot">追蹤 @a0921925365 看更多代管日常</div>
+    </div>
+  </div>`;
+  document.getElementById("againBtn").onclick=()=>{resetState();renderDay();};
+  document.getElementById("shareBtn").onclick=()=>{
+    const t=`我在《租賃管理人員的人森》撐了 ${STATE.day-1} 天｜現金 $${STATE.cash}｜聲譽 ${STATE.rep}｜體力 ${STATE.hp}\n${STATE.endMsg}`;
+    if(navigator.share){navigator.share({title:"租賃管理人員的人森",text:t}).catch(()=>{});}
+    else{try{navigator.clipboard.writeText(t);alert("戰績已複製！");}catch(e){alert(t);}}
+  };
+}
+
+renderIntro();
+</script>
+</body>
+</html>
