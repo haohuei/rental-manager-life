@@ -1387,14 +1387,51 @@ function doChaseRent(){
 }
 
 /* ============ 租客篩選（代管關鍵技能）============ */
+// 候選租客池：每次抽 3 人，一個 safe / avg / risky
+const TENANT_POOL = {
+  safe: [
+    {name:"陳工程師", emoji:"🧑‍💻", income:"$80K/月",   job:"外商 PM",       pros:"準時繳租、不囉嗦",         cons:"要求屋況完美、合約看三天"},
+    {name:"吳醫師",   emoji:"🧑‍⚕️", income:"$120K/月",  job:"醫學中心住院醫師", pros:"收入穩定、幾乎不在家",       cons:"值班作息顛倒、半夜回家吵"},
+    {name:"李老師",   emoji:"🧑‍🏫", income:"$55K/月",   job:"國小教師",       pros:"品性佳、鄰居不會投訴",       cons:"寒暑假會嫌空氣悶要你裝冷氣"},
+    {name:"王會計師", emoji:"👩‍💼", income:"$70K/月",   job:"四大所一年級",    pros:"稅季不在家、沒時間抱怨",     cons:"對合約條文會逐條議價"},
+    {name:"林律師",   emoji:"🧑‍⚖️", income:"$95K/月",   job:"商務所",         pros:"穩定、押金立付",           cons:"你違約他第一個告你"},
+    {name:"張公務員", emoji:"🧓",   income:"$48K/月",   job:"地政事務所科員",   pros:"終身職、絕對準時",         cons:"下班後有大量時間可以挑剔你"},
+    {name:"謝研究員", emoji:"👨‍🔬", income:"$65K/月",   job:"國家實驗室",      pros:"安靜宅男、幾乎不出門",       cons:"東西囤到可能有消防疑慮"}
+  ],
+  avg: [
+    {name:"黃小姐",   emoji:"👩",   income:"$42K/月",   job:"外商業務",       pros:"當場簽約、押金立付",       cons:"業績月偶爾晚 3-5 天"},
+    {name:"鄭先生",   emoji:"🧑",   income:"$38K/月",   job:"數位行銷",       pros:"文青、重視室內質感",       cons:"要求上網速度 500M 以上"},
+    {name:"劉妹",     emoji:"👩‍✈️", income:"$55K/月",   job:"國籍航空空姐",    pros:"長時間不在、不吵",         cons:"回國時行李像搬家"},
+    {name:"蘇主廚",   emoji:"👨‍🍳", income:"$50K/月",   job:"餐廳副主廚",      pros:"熱愛烹飪",               cons:"油煙投訴機率 ×3"},
+    {name:"陳二哥",   emoji:"🧔",   income:"$45K/月",   job:"中古車商",       pros:"現金豪爽",               cons:"愛喝酒應酬、半夜 3 點回家"},
+    {name:"趙小姐",   emoji:"👩‍🦱", income:"$40K/月",   job:"美甲工作室",      pros:"愛整潔、自己裝修都讓你驗收", cons:"客戶來家裡做美甲"},
+    {name:"周網美",   emoji:"🤳",   income:"$43K/月",   job:"IG 美妝部落客",   pros:"重視房屋美感",            cons:"常拍片、鄰居誤會"}
+  ],
+  risky: [
+    {name:"阿凱",     emoji:"🧔",   income:"現金收入",   job:"\"自由業\"",     pros:"願付 +$500/月、不囉嗦",   cons:"身分證拿影本、保證人不填"},
+    {name:"小胖",     emoji:"🛵",   income:"$28K/月",   job:"外送員",         pros:"願意立刻搬進",            cons:"收入不穩、保證人是同事"},
+    {name:"阿勝",     emoji:"🎙️",  income:"浮動",      job:"實況主／抖內中",  pros:"幾乎不出門",              cons:"半夜開 Live 嘶吼"},
+    {name:"阿偉",     emoji:"🧑",   income:"準備找工作", job:"剛退伍",         pros:"父母當保證人",            cons:"沒收入來源、第一個月後很難說"},
+    {name:"Molly",   emoji:"💃",   income:"現金/日結",  job:"酒店經紀",       pros:"氣派、不囉嗦",            cons:"訪客多、鄰居會疑神疑鬼"},
+    {name:"小鄭",     emoji:"🧑",   income:"自稱 $60K", job:"幣圈交易員",      pros:"願一次付半年",            cons:"打死不給任何對帳單"},
+    {name:"吳先生",   emoji:"🧑",   income:"低調不說",   job:"\"顧問\"",       pros:"押金願付三倍",            cons:"要求房客欄不要寫他本名"}
+  ]
+};
+
 function openTenantScreen(unit){
   S.inModal=true;
-  // 3 個候選人：safe（穩定但要求多）/ avg（普通）/ risky（高意願但背景可疑）
+  // 每次隨機抽：一個 safe / 一個 avg / 一個 risky
+  const pick = pool => pool[Math.floor(Math.random()*pool.length)];
   const candidates = [
-    {name:"陳工程師", emoji:"🧑‍💻", quality:"safe", income:"$80K/月", job:"外商 PM", pros:"準時繳租、不囉嗦", cons:"要求屋況完美、合約要讓他看三天"},
-    {name:"黃小姐", emoji:"👩", quality:"avg", income:"$42K/月", job:"業務", pros:"當場簽約、押金立付", cons:"偶爾會晚個 3-5 天"},
-    {name:"阿凱", emoji:"🧔", quality:"risky", income:"現金收入", job:"\"自由業\"", pros:"願付 +$500/月、不囉嗦", cons:"身分證拿影本、保證人不填"}
+    {...pick(TENANT_POOL.safe),  quality:"safe"},
+    {...pick(TENANT_POOL.avg),   quality:"avg"},
+    {...pick(TENANT_POOL.risky), quality:"risky"}
   ];
+  // 隨機洗牌，避免每次都 safe 在最上面
+  for(let i=candidates.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [candidates[i],candidates[j]]=[candidates[j],candidates[i]];
+  }
   const bg=document.createElement("div");bg.className="dlg-bg";
   bg.innerHTML=`<div class="dlg" style="max-height:90vh;">
     <div class="dlg-scene office">
