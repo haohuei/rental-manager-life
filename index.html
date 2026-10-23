@@ -296,6 +296,7 @@
       <div class="b"><div class="b-l"><span>體力</span><b id="hpN">100</b></div><div class="bar"><i id="hpBar" style="width:100%;background:#e8b84a"></i></div></div>
       <div class="b"><div class="b-l"><span>房源</span><b id="rmN">6</b></div><div class="bar"><i style="width:100%;background:#6b8e5a"></i></div></div>
     </div>
+    <div id="unitStrip" style="display:flex;gap:3px;margin-top:5px;font-size:9px;"></div>
   </div>
 
   <!-- Scene -->
@@ -661,6 +662,9 @@ const KNOWLEDGE = [
   {id:"k_roi",       cat:"經營", title:"ROI 怎麼算",               source:"業界實務、不動產估價",
     body:"<b>年租金淨收入 ÷ 房屋總值 × 100%</b><br/>台北市：2–3%｜新北：2.5–3.5%｜中南部：3.5–5%",
     cost:"低於 2% 的物件基本是「賭增值」，不是「賺租金」。", trap:"用「毛租金」算 ROI 會虛高 1.5–2%。"},
+  {id:"k_screening", cat:"經營", title:"代管業的生死：篩選租客",         source:"業界實務、租賃住宅市場發展條例",
+    body:"代管費是「租客有繳才有收」。篩錯一個租客，<br/>可能連續 3-6 個月零收入 + 要幫大房東催繳。<br/>必查：薪轉／工作證明、保證人身分證正本、聯徵或財力證明。",
+    cost:"風險租客 → 準時率 45%、拖到強制執行要 90–180 天。", trap:"「加 +$500 就簽」「身分證拿影本就好」「保證人之後補」三句話出現任一句，直接退。"},
   {id:"k_pricing",   cat:"經營", title:"訂租金的三個方法",         source:"業界實務",
     body:"1. <b>周邊比價</b>：591 篩同區同坪數前 20 筆<br/>2. <b>坪效</b>：市場均價 × 坪數 × 條件修正<br/>3. <b>現金流回推</b>：目標 ROI 反推最低可接受租金",
     cost:"訂太高：空租 1 個月 = 省下的加價都還了回去。", trap:"用「我當初買多少」訂租金是最大陷阱。市場不管你的成本。"}
@@ -897,6 +901,8 @@ const EVENTS = [
 ];
 
 /* ============ GAME STATE ============ */
+// 租客品質決定準時繳租機率：safe=95% / avg=75% / risky=45%
+const UNIT_IDS = ["A101","A102","B201","B202","C301","C302"];
 const S = {
   day:1, maxDay:30,
   time:9*60,
@@ -907,13 +913,17 @@ const S = {
   playerPos:"office",
   running:false, inDialog:false, inModal:false,
   mode:"exp",
-  bizMode:"sublease",   // "sublease"=包租 "management"=代管
-  mgmtFeeRate:0.10,     // 代管管理費比例
-  masterRent:4000,      // 包租時每間房付大房東的月租/日化
-  tenantRent:7500,      // 每間房的租客月租/日化
+  bizMode:"sublease",
+  mgmtFeeRate:0.10,
+  masterRent:4000,
+  tenantRent:7500,
+  // 代管關鍵：每間房的租客品質 + 今日繳租狀態
+  units: UNIT_IDS.map(id=>({id, tenant:"avg", status:"paid", lateDays:0})),
   sound:true, textSpeed:30,
   notebook:[]
 };
+function resetUnits(){S.units = UNIT_IDS.map(id=>({id, tenant:"avg", status:"paid", lateDays:0}));}
+function payProb(q){return q==="safe"?0.95: q==="avg"?0.75: 0.45;}
 const SAVE_KEY="rml_v04";
 function savePersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.best=Math.max(o.best||0,S.day-1);o.notebook=S.notebook;o.sound=S.sound;o.textSpeed=S.textSpeed;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}
 function loadPersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(Array.isArray(o.notebook))S.notebook=o.notebook.filter(x=>typeof x==='string');if(typeof o.sound==='boolean')S.sound=o.sound;if(o.textSpeed!==undefined)S.textSpeed=o.textSpeed;return o;}catch(e){return{};}}
@@ -1321,6 +1331,24 @@ function renderActions(){
     b.onclick=()=>{movePlayerTo(t.unit);setTimeout(()=>openDialog(t),650);};
     row.appendChild(b);
   });
+  // 若有欠租戶：加「催繳」按鈕
+  const lateUnits = S.units.filter(u=>u.status!=="paid");
+  if(lateUnits.length){
+    const chase=document.createElement("button");
+    chase.className="act-btn warn";
+    chase.innerHTML=`催繳 ${lateUnits.length} 戶`;
+    chase.onclick=doChaseRent;
+    row.appendChild(chase);
+  }
+  // 若有 missing（長期欠租）：加「換租客」篩選
+  const missing = S.units.filter(u=>u.status==="missing");
+  if(missing.length){
+    const screen=document.createElement("button");
+    screen.className="act-btn gold";
+    screen.innerHTML=`篩新租客 ${missing.length}`;
+    screen.onclick=()=>openTenantScreen(missing[0]);
+    row.appendChild(screen);
+  }
   const eat=document.createElement("button");
   eat.className="act-btn gold";
   eat.innerHTML="吃便當<br/><small style='font-size:10px;font-weight:400;'>-$120 +15體力</small>";
@@ -1333,6 +1361,87 @@ function renderActions(){
   row.appendChild(off);
 }
 
+function doChaseRent(){
+  if(S.hp<10){toast("太累了，催不動。");return;}
+  S.hp = Math.max(0, S.hp-10);
+  advanceTime(90);
+  const lateUnits = S.units.filter(u=>u.status==="late");
+  let recovered=0;
+  lateUnits.forEach(u=>{
+    // 準時戶 85% 救回；風險戶 40%
+    const prob = u.tenant==="safe"?0.85: u.tenant==="avg"?0.65:0.4;
+    if(Math.random()<prob){
+      u.status="paid";u.lateDays=0;recovered++;
+    } else {
+      u.lateDays++;
+    }
+  });
+  if(recovered){fx(`催回 ${recovered} 戶租金`,"#9ad17f");AUDIO.coin();}
+  else{toast("催了半天沒半個付，白跑一趟。");AUDIO.angry();}
+  updateHUD();renderActions();
+}
+
+/* ============ 租客篩選（代管關鍵技能）============ */
+function openTenantScreen(unit){
+  S.inModal=true;
+  // 3 個候選人：safe（穩定但要求多）/ avg（普通）/ risky（高意願但背景可疑）
+  const candidates = [
+    {name:"陳工程師", emoji:"🧑‍💻", quality:"safe", income:"$80K/月", job:"外商 PM", pros:"準時繳租、不囉嗦", cons:"要求屋況完美、合約要讓他看三天"},
+    {name:"黃小姐", emoji:"👩", quality:"avg", income:"$42K/月", job:"業務", pros:"當場簽約、押金立付", cons:"偶爾會晚個 3-5 天"},
+    {name:"阿凱", emoji:"🧔", quality:"risky", income:"現金收入", job:"\"自由業\"", pros:"願付 +$500/月、不囉嗦", cons:"身分證拿影本、保證人不填"}
+  ];
+  const bg=document.createElement("div");bg.className="dlg-bg";
+  bg.innerHTML=`<div class="dlg" style="max-height:90vh;">
+    <div class="dlg-scene office">
+      <div class="scene-tag">${unit.id} · 篩選新租客</div>
+      <div class="scene-time">${fmtTime(S.time)}</div>
+    </div>
+    <div class="dlg-body" style="padding:16px;">
+      <div class="m-desc" style="margin-bottom:12px;font-size:13px;">
+        ${unit.id} 空出來了。三個人今天來看房，你收下誰？
+      </div>
+      <div class="m-prompt">候選租客（代管業的生死攸關選擇）</div>
+      <div id="candList"></div>
+    </div>
+  </div>`;
+  document.getElementById("stage").appendChild(bg);
+  AUDIO.page();
+  const list=bg.querySelector("#candList");
+  candidates.forEach(c=>{
+    const probPct = Math.round(payProb(c.quality)*100);
+    const qColor = c.quality==="safe"?"#9ad17f":c.quality==="risky"?"#c25a3b":"#c9a24a";
+    const b=document.createElement("button");
+    b.className="choice";
+    b.innerHTML=`<div style="display:flex;gap:10px;align-items:flex-start;">
+      <div style="font-size:34px;flex-shrink:0;line-height:1;">${c.emoji}</div>
+      <div style="flex:1;">
+        <div class="ch-text">${c.name} · ${c.job}</div>
+        <div style="font-size:11px;color:#666;margin-bottom:4px;">${c.income}｜繳租準時率 <b style="color:${qColor};">${probPct}%</b></div>
+        <div style="font-size:11px;color:#1a7a3d;line-height:1.4;">✓ ${c.pros}</div>
+        <div style="font-size:11px;color:#c2412b;line-height:1.4;">✗ ${c.cons}</div>
+      </div>
+    </div>`;
+    b.onclick=(e)=>{
+      e.stopPropagation();
+      unit.tenant = c.quality;
+      unit.status = "paid"; unit.lateDays = 0;
+      bg.remove();S.inModal=false;
+      advanceTime(60);
+      toast(`✓ ${c.name} 入住 ${unit.id}（準時率 ${probPct}%）`);
+      AUDIO.coin();
+      updateHUD();renderActions();
+      // 首次篩選解鎖知識
+      const k = KNOWLEDGE.find(x=>x.id==="k_screening");
+      if(k && !S.notebook.includes(k.id)){
+        S.notebook.push(k.id);
+        savePersist();
+        setTimeout(()=>showKnowledgeCard(k),400);
+      }
+    };
+    list.appendChild(b);
+  });
+}
+
 function doEatLunch(){
   if(S.cash<120){toast("錢包空空，吃不起便當。");return;}
   S.cash-=120;S.hp=Math.min(100,S.hp+15);advanceTime(45);
@@ -1342,19 +1451,36 @@ function doEatLunch(){
 
 function doEndDay(){
   let income, incomeMsg;
+  const dailyRent = (S.tenantRent/30 | 0);
+  const dailyCost = (S.masterRent/30 | 0);
+  const paidUnits = S.units.filter(u=>u.status==="paid").length;
+  const overdueUnits = S.units.filter(u=>u.status!=="paid").length;
+
   if(S.bizMode==="sublease"){
-    // 包租業：收租客 - 付大房東。空租風險由玩家承擔
-    const gross = S.rooms * (S.tenantRent/30 | 0);
-    const cost = S.rooms * (S.masterRent/30 | 0);
+    // 包租業：欠租戶你照樣要付大房東，自己吃損失
+    const gross = paidUnits * dailyRent;
+    const cost = S.units.length * dailyCost;
     income = gross - cost;
-    incomeMsg = `租客收 +$${gross.toLocaleString()} / 大房東付 -$${cost.toLocaleString()} / 淨 +$${income.toLocaleString()}`;
+    incomeMsg = `收 ${paidUnits}/${S.units.length} 戶租金 +$${gross.toLocaleString()} / 付大房東 -$${cost.toLocaleString()} / 淨 +$${income.toLocaleString()}`;
+    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租你自己吞`;
   } else {
-    // 代管業：固定比例管理費
-    const gross = S.rooms * (S.tenantRent/30 | 0);
-    income = Math.round(gross * S.mgmtFeeRate);
-    incomeMsg = `管理費 ${Math.round(S.mgmtFeeRate*100)}% × 租金 $${gross.toLocaleString()} = +$${income.toLocaleString()}`;
+    // 代管業：欠租戶不算你的管理費
+    const grossPaid = paidUnits * dailyRent;
+    income = Math.round(grossPaid * S.mgmtFeeRate);
+    incomeMsg = `${paidUnits}/${S.units.length} 戶繳租 × ${Math.round(S.mgmtFeeRate*100)}% = +$${income.toLocaleString()}`;
+    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租 → 這些月沒抽成`;
   }
   S.cash += income;
+
+  // 每日：有機率新增欠租戶（依租客品質）
+  S.units.forEach(u=>{
+    if(u.status==="paid" && Math.random() > payProb(u.tenant)){
+      u.status = "late"; u.lateDays = 1;
+    } else if(u.status==="late"){
+      u.lateDays++;
+      if(u.lateDays>=5){u.status="missing";}
+    }
+  });
   const unfinished=S.tasks.filter(t=>t.status==="open");
   const urgent=unfinished.filter(t=>["急件","急修","欠租","投訴","風控","重大"].includes(t.event.tag));
   if(urgent.length){
@@ -1433,6 +1559,16 @@ function updateHUD(){
   document.getElementById("rmN").textContent=S.rooms;
   document.getElementById("repBar").style.width=S.rep+"%";
   document.getElementById("hpBar").style.width=S.hp+"%";
+  // 繳租狀態條
+  const strip=document.getElementById("unitStrip");
+  if(strip){
+    strip.innerHTML=S.units.map(u=>{
+      const qColor=u.tenant==="safe"?"#9ad17f":u.tenant==="risky"?"#c25a3b":"#c9a24a";
+      const sBg=u.status==="paid"?"#2a4a30":u.status==="late"?"#8c4a28":"#5a1a14";
+      const sTxt=u.status==="paid"?"✓":u.status==="late"?`遲${u.lateDays}`:"⚠";
+      return `<div style="flex:1;background:${sBg};border-top:3px solid ${qColor};border-radius:3px;padding:2px 4px;text-align:center;color:#faf6ea;font-weight:700;letter-spacing:.05em;">${u.id.slice(1)}<br/><span style="font-size:9px;">${sTxt}</span></div>`;
+    }).join("");
+  }
 }
 function toast(text){const t=document.getElementById("toast");const m=document.createElement("div");m.className="msg";m.textContent=text;t.appendChild(m);setTimeout(()=>m.remove(),2800);}
 function fx(text,color){const d=document.createElement("div");d.className="delta";d.style.color=color;d.textContent=text;document.getElementById("stage").appendChild(d);setTimeout(()=>d.remove(),1500);}
@@ -1565,6 +1701,7 @@ function startGame(){
   loadPersist();
   const startCash = S.bizMode==="sublease" ? 80000 : 50000;
   Object.assign(S,{day:1,time:9*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false});
+  resetUnits();
   document.getElementById("intro").classList.add("hide");
   document.getElementById("bizScr").classList.add("hide");
   document.getElementById("feeScr").classList.add("hide");
