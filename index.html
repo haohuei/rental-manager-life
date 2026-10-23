@@ -220,9 +220,10 @@
     <div class="sub"><span class="sub-type" id="subType"></span></div>
     <div class="card-i">
       你是 <b>老柯</b>，剛創業的租賃管理人員。<br/>
-      手上 6 間套房 + 1 間辦公室，每天 09:00 進辦公室看交班單。<br/>
+      手上 6 間套房 + 1 間辦公室，每天 <b>11:00</b> 進辦公室看交班單（20:00 下班，但緊急事件全天待命）。<br/>
       點位置或按鈕走過去，<b>和房客對話，做出選擇</b>。<br/>
-      撐 <b>30 天</b> 不破產、不過勞、不黑掉就贏。<br/>
+      撐 <b>60 天（2 個月）</b> 不破產、不過勞、不黑掉就贏。<br/>
+      <span style="color:var(--gold);">月流程：5 號前繳租期 ｜ 6-10 號催繳期 ｜ 10 號出月報匯款房東</span><br/>
       <b style="color:var(--warn);">玩完你比 90% 的新手房東懂規矩。</b>
     </div>
     <div class="mode-pick">
@@ -284,7 +285,7 @@
   <!-- HUD -->
   <div id="hud" class="hide">
     <div class="hud-top">
-      <div class="day-time">DAY <b id="dayNum">1</b> · <span id="timeNow">09:00</span> · <span id="bizTag" style="color:var(--gold);font-weight:700;">包租</span></div>
+      <div class="day-time"><span id="dateTag">1月1日</span> · <span id="timeNow">11:00</span> · <span id="bizTag" style="color:var(--gold);font-weight:700;">代管12%</span></div>
       <div class="hud-right">
         <div class="icon-btn" id="nbBtn" title="筆記本">📓</div>
         <div class="icon-btn" id="setBtn" title="設定">⚙️</div>
@@ -297,6 +298,7 @@
       <div class="b"><div class="b-l"><span>房源</span><b id="rmN">6</b></div><div class="bar"><i style="width:100%;background:#6b8e5a"></i></div></div>
     </div>
     <div id="unitStrip" style="display:flex;gap:3px;margin-top:5px;font-size:9px;"></div>
+    <div id="phaseStrip" style="margin-top:5px;font-size:10px;background:rgba(0,0,0,.25);border-radius:5px;padding:3px 7px;letter-spacing:.08em;"></div>
   </div>
 
   <!-- Scene -->
@@ -904,9 +906,11 @@ const EVENTS = [
 // 租客品質決定準時繳租機率：safe=95% / avg=75% / risky=45%
 const UNIT_IDS = ["A101","A102","B201","B202","C301","C302"];
 const S = {
-  day:1, maxDay:30,
-  time:9*60,
+  day:1, maxDay:60,
+  time:11*60,  // 對外上班 11:00-20:00
   cash:50000, rep:60, hp:100, rooms:6,
+  monthReportDone:false,
+  nightDebuff:0,  // 半夜處理事件後，隔天開頭的精神負效果（0-30）
   seen:[], log:[],
   tasks:[],
   gameover:false, win:false, endMsg:"",
@@ -1489,19 +1493,36 @@ function doEndDay(){
     toast(`⚠️ ${urgent.length} 項緊急未處理，聲譽 -${urgent.length*5}`);
     AUDIO.angry();
   }
-  S.hp=Math.min(100,S.hp+10);
-  S.day++;S.time=9*60;S.playerPos="office";
-  updateHUD();checkEnd();
+  // 睡覺恢復（但 nightDebuff 會打折）
+  const sleep = Math.max(0, 10 - S.nightDebuff);
+  S.hp = Math.min(100, S.hp+sleep);
+  S.day++; S.time = 11*60; S.playerPos = "office";
+  S.monthReportDone = false;
+  // 隔天 debuff：半夜處理事件 → 開頭精神值掉
+  if(S.nightDebuff>0){
+    S.hp = Math.max(0, S.hp - S.nightDebuff);
+    toast(`😩 昨晚沒睡好，精神 -${S.nightDebuff}`);
+    S.nightDebuff = 0;
+  }
+  updateHUD(); checkEnd();
   if(!S.gameover){
-    toast(`☀️ Day ${S.day}｜${incomeMsg}`);
+    toast(`☀️ ${fmtDate(S.day)}｜${incomeMsg}`);
     AUDIO.coin();
-    generateDayTasks();buildScene();renderActions();updateSceneBg();
+    generateDayTasks(); buildScene(); renderActions(); updateSceneBg();
+    monthlyTick();
   }
 }
 
 function advanceTime(mins){
-  S.time+=mins;
-  updateHUD();updateSceneBg();
+  const before = S.time;
+  S.time += mins;
+  // 超過 20:00 → 累積隔天 debuff（每小時 +5）
+  if(S.time > 20*60){
+    const overtimeHours = Math.min(6, Math.ceil((S.time - 20*60)/60));
+    S.nightDebuff = Math.min(30, overtimeHours * 5);
+    if(before <= 20*60) toast("🌙 已超過 20:00 下班時間，繼續工作會累積隔天疲勞");
+  }
+  updateHUD(); updateSceneBg();
 }
 
 function updateSceneBg(){
@@ -1513,6 +1534,151 @@ function updateSceneBg(){
 }
 
 function fmtTime(mins){const h=Math.floor(mins/60),m=mins%60;return `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}`;}
+
+/* === 月流程 === */
+function getMonthDay(day){
+  const month = day<=30 ? 1 : 2;
+  const d = ((day-1) % 30) + 1;
+  return {month, day: d};
+}
+function fmtDate(day){
+  const {month, day: d} = getMonthDay(day);
+  return `${month}月${d}日`;
+}
+function getMonthPhase(day){
+  const {day: d} = getMonthDay(day);
+  if(d <= 5)  return {name:"繳租期",   color:"#6b8e5a", hint:"等租客 5 號繳租"};
+  if(d <= 9)  return {name:"催繳期一", color:"#c9a24a", hint:"6-10 號軟性催繳欠租戶"};
+  if(d === 10)return {name:"月報日",   color:"#c9a24a", hint:"今天要出月報 + 匯款給房東"};
+  if(d <= 20) return {name:"日常營運", color:"#6b8e5a", hint:"日常維運＋間歇催繳"};
+  return         {name:"月底",       color:"#8c6e3a", hint:"準備下月繳租期"};
+}
+function getLateChunk(unitId){ // 這戶欠多久（月數）
+  const u = S.units.find(x=>x.id===unitId);
+  if(!u || u.status==="paid") return 0;
+  return Math.ceil(u.lateDays/30);
+}
+// 月中特殊觸發
+function monthlyTick(){
+  const {day: d} = getMonthDay(S.day);
+  // 10 號出月報
+  if(d===10 && !S.monthReportDone){
+    S.monthReportDone = true;
+    setTimeout(openMonthReport, 500);
+    return;
+  }
+  // 次月 10 號（整體第 40 天）：對欠租超過 1 個月的租客寄存證信函
+  if(d===10 && S.day>=35){
+    const chronicLate = S.units.filter(u=>u.lateDays>=15);
+    if(chronicLate.length){
+      setTimeout(()=>openCertifiedLetter(chronicLate), 1500);
+    }
+  }
+}
+
+/* === 月報事件 === */
+function openMonthReport(){
+  S.inModal=true;
+  const paidUnits = S.units.filter(u=>u.status==="paid").length;
+  const totalRevenue = paidUnits * (S.tenantRent);
+  const mgmtFee = S.bizMode==="management" ? Math.round(totalRevenue * S.mgmtFeeRate) : 0;
+  const remit = totalRevenue - mgmtFee; // 匯給房東的金額
+  const bg=document.createElement("div");bg.className="know-bg";
+  bg.innerHTML=`<div class="know" style="max-width:380px;">
+    <div class="know-tag">📊 ${fmtDate(S.day)} · 月報日</div>
+    <div class="know-title">出月報 + 匯款給房東</div>
+    <div class="know-body" style="margin-bottom:12px;">
+      本月實收 <b>${paidUnits}/${S.units.length}</b> 戶租金<br/>
+      <table style="width:100%;margin-top:8px;font-size:12px;border-collapse:collapse;">
+        <tr><td>租金收入</td><td style="text-align:right;">$${totalRevenue.toLocaleString()}</td></tr>
+        ${S.bizMode==="management"?`<tr><td>管理費 ${Math.round(S.mgmtFeeRate*100)}%</td><td style="text-align:right;color:#1a7a3d;">-$${mgmtFee.toLocaleString()}</td></tr>`:""}
+        <tr style="border-top:1px solid #d9cfb4;"><td><b>匯款給房東</b></td><td style="text-align:right;"><b>$${remit.toLocaleString()}</b></td></tr>
+      </table>
+    </div>
+    ${S.bizMode==="management"?`<div style="background:#f1e9d2;padding:8px 10px;border-radius:6px;font-size:12px;color:#444;margin-bottom:10px;line-height:1.6;"><b style="color:#8c6e2b;">💡 業界實務：</b>月初出帳、10 號前匯款。遇假日順延到平日。報表要列繳租／欠租／維修明細，房東會逐戶核對。</div>`:""}
+    <div style="text-align:center;font-size:11px;color:#8a8578;margin-bottom:10px;">月報處理耗時 2 小時</div>
+    <button class="know-close" id="mrClose">送出月報</button>
+  </div>`;
+  document.getElementById("stage").appendChild(bg);
+  AUDIO.page();
+  document.getElementById("mrClose").onclick=()=>{
+    bg.remove();S.inModal=false;
+    if(S.bizMode==="management"){
+      // 代管模式：管理費抽成當天入帳
+      S.cash += mgmtFee;
+      fx(`月報完成 +$${mgmtFee.toLocaleString()}`,"#9ad17f");
+      AUDIO.coin();
+    }
+    advanceTime(120);
+    updateHUD();renderActions();
+  };
+}
+
+/* === 存證信函事件 === */
+function openCertifiedLetter(units){
+  S.inModal=true;
+  const u = units[0];
+  const bg=document.createElement("div");bg.className="dlg-bg";
+  bg.innerHTML=`<div class="dlg">
+    <div class="dlg-scene night">
+      <div class="scene-tag">${u.id} · 欠租第 2 個月</div>
+      <div class="scene-time">${fmtDate(S.day)} ${fmtTime(S.time)}</div>
+    </div>
+    <div class="dlg-body" style="padding:16px;">
+      <div class="m-desc" style="margin-bottom:12px;">
+        ${u.id} 已欠租 <b>${u.lateDays} 天</b>，催了 6-7 次都沒結果。<br/>
+        依法可以寄存證信函 + 現場貼單告知最後搬離期限了。
+      </div>
+      <div class="m-prompt">你怎麼辦</div>
+      <div id="clChoices"></div>
+    </div>
+  </div>`;
+  document.getElementById("stage").appendChild(bg);
+  const list=bg.querySelector("#clChoices");
+  const choices = [
+    {text:"寄存證信函 + 現場貼單", cash:-800, rep:3, hp:-5, note:"法律程序啟動。對方 70% 在期限內繳清。", resolve:0.7},
+    {text:"再給一週，當面再談一次", cash:0, rep:1, hp:-10, note:"你跑一趟。對方 40% 願意立刻給。", resolve:0.4},
+    {text:"直接走強制執行流程", cash:-5000, rep:-3, hp:-3, note:"6 個月後拿回房間。期間照常虧錢。", resolve:1.0, kick:true}
+  ];
+  choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="choice";
+    b.innerHTML=`<div class="ch-text">${c.text}</div>
+      <div class="ch-note">${c.note}</div>
+      <div class="ch-deltas">
+        ${c.cash?`<span class="${c.cash<0?'neg':'pos'}">${c.cash<0?'':'+'}$${c.cash.toLocaleString()}</span>`:""}
+        ${c.rep?`<span class="${c.rep<0?'neg':'pos'}">${c.rep<0?'':'+'}${c.rep} 聲譽</span>`:""}
+        ${c.hp?`<span class="${c.hp<0?'neg':'pos'}">${c.hp<0?'':'+'}${c.hp} 體力</span>`:""}
+      </div>`;
+    b.onclick=(e)=>{
+      e.stopPropagation();
+      S.cash+=c.cash||0;
+      S.rep=Math.max(0,Math.min(100,S.rep+(c.rep||0)));
+      S.hp=Math.max(0,Math.min(100,S.hp+(c.hp||0)));
+      if(c.kick){
+        u.status="paid"; u.lateDays=0; u.tenant="avg"; // 空出來
+        toast(`${u.id} 強制執行，租客搬離，房間空出來`);
+      } else if(Math.random()<c.resolve){
+        u.status="paid"; u.lateDays=0;
+        fx(`${u.id} 繳清欠租`,"#9ad17f");
+        AUDIO.coin();
+      } else {
+        toast(`${u.id} 還是沒繳，繼續拖⋯⋯`);
+        AUDIO.angry();
+      }
+      bg.remove();S.inModal=false;
+      advanceTime(60);
+      updateHUD();renderActions();buildScene();
+      // 解鎖知識
+      const k = KNOWLEDGE.find(x=>x.id==="k_overdue");
+      if(k && !S.notebook.includes(k.id)){
+        S.notebook.push(k.id);savePersist();
+        setTimeout(()=>showKnowledgeCard(k),400);
+      }
+    };
+    list.appendChild(b);
+  });
+}
 
 // 根據經營模式調整角色稱呼（大房東 vs 房東、二房東稱呼）
 function displayName(cid){
@@ -1568,10 +1734,16 @@ function end(type,title,msg){
 
 /* ============ HUD ============ */
 function updateHUD(){
-  document.getElementById("dayNum").textContent=S.day;
+  const dt=document.getElementById("dateTag");
+  if(dt) dt.textContent = `Day ${S.day}｜${fmtDate(S.day)}`;
   document.getElementById("timeNow").textContent=fmtTime(S.time);
   const bt=document.getElementById("bizTag");
   if(bt) bt.textContent = S.bizMode==="sublease"?"包租":"代管"+Math.round(S.mgmtFeeRate*100)+"%";
+  const ps=document.getElementById("phaseStrip");
+  if(ps){
+    const phase = getMonthPhase(S.day);
+    ps.innerHTML = `<span style="color:${phase.color};font-weight:700;">● ${phase.name}</span> <span style="color:rgba(241,233,210,.65);">· ${phase.hint}</span>`;
+  }
   const cE=document.getElementById("cash");
   cE.textContent="$"+S.cash.toLocaleString();
   cE.className="cash"+(S.cash<0?" neg":"");
@@ -1721,7 +1893,7 @@ function showScreen(id){
 function startGame(){
   loadPersist();
   const startCash = S.bizMode==="sublease" ? 80000 : 50000;
-  Object.assign(S,{day:1,time:9*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false});
+  Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60});
   resetUnits();
   document.getElementById("intro").classList.add("hide");
   document.getElementById("bizScr").classList.add("hide");
@@ -1734,7 +1906,7 @@ function startGame(){
   AUDIO.init();AUDIO.page();
   generateDayTasks();buildScene();updateHUD();renderActions();updateSceneBg();
   const modeTxt = S.bizMode==="sublease" ? "包租業（付大房東、收租客）" : `代管業（代房東管房，抽 ${Math.round(S.mgmtFeeRate*100)}% 管理費）`;
-  toast(`☀️ Day 1 09:00｜${modeTxt}`);
+  toast(`☀️ Day 1 ${fmtDate(1)} 11:00｜${modeTxt}`);
 }
 
 // Intro Start → bizScr
