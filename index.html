@@ -249,11 +249,11 @@
     </div>
     <div class="card-i" style="margin-bottom:14px;cursor:pointer;border:2px solid var(--gold);background:#faf6ea;" id="pickManage">
       <div style="font-size:16px;font-weight:900;color:var(--f700);margin-bottom:4px;">🧑‍💼 代管業</div>
-      <div style="font-size:11px;color:#8a8578;margin-bottom:8px;">你幫大房東管房，收管理費</div>
+      <div style="font-size:11px;color:#8a8578;margin-bottom:8px;">你幫房東管房，收管理費</div>
       <div style="font-size:12px;line-height:1.6;color:#444;">
-        • 收<b>租金的 8–15%</b>當管理費（實務業界行情）<br/>
-        • 空租大房東吃，<b style="color:#1a7a3d;">你收入穩定</b><br/>
-        • 但大房東會干涉決策，你夾在中間<br/>
+        • 收<b>租客實繳租金的 8–15%</b>當管理費<br/>
+        • <b style="color:var(--warn);">租客沒繳 = 你沒抽成</b>，篩租客跟催繳是核心技能<br/>
+        • 空租房東吃，但你的收入直接綁租客品質<br/>
         • 起始現金：<b>$50,000</b>｜你可議管理費比例
       </div>
     </div>
@@ -266,10 +266,10 @@
     <h1 class="title-logo" style="font-size:26px;margin-bottom:12px;">管理費抽成幾 %？</h1>
     <div class="card-i">
       <div style="font-size:12px;line-height:1.7;color:#444;">
-        大房東：「柯先生，你覺得多少合理？」<br/><br/>
+        房東：「柯先生，你覺得多少合理？」<br/><br/>
         <b style="color:var(--f700);">8%</b> 業界底線，容易談成但收入少<br/>
         <b style="color:var(--f700);">10%</b> 行情中位，最常見<br/>
-        <b style="color:var(--f700);">12%</b> 稍高，大房東會皺眉<br/>
+        <b style="color:var(--f700);">12%</b> 稍高，房東會皺眉<br/>
         <b style="color:var(--warn);">15%</b> 業界高標，很難成交但賺更多
       </div>
     </div>
@@ -751,7 +751,7 @@ const EVENTS = [
   },
   {
     id:"bao_sell", unit:"中庭", title:"阿寶：我把你的租約賣了", tag:"二房東", time:"11:00", scene:"office",
-    char:"bao",
+    char:"bao", onlyBiz:"sublease",
     lines:[
       {s:"bao", e:"scheming", t:"兄弟～這樣啦，我上禮拜把 302 的租約轉給另一個包租公了。"},
       {s:"bao", e:"happy", t:"你就跟新的包租公繼續合作就好啊，條件一樣啦！"},
@@ -1074,8 +1074,9 @@ function movePlayerTo(locKey){
 
 /* ============ TASKS ============ */
 function pickEvent(){
-  const pool=EVENTS.filter(e=>!S.seen.includes(e.id));
-  const src=pool.length?pool:EVENTS;
+  const matchBiz = e => !e.onlyBiz || e.onlyBiz===S.bizMode;
+  const pool=EVENTS.filter(e=>!S.seen.includes(e.id) && matchBiz(e));
+  const src=pool.length?pool:EVENTS.filter(matchBiz);
   const ev=src[Math.floor(Math.random()*src.length)];
   S.seen.push(ev.id);
   return ev;
@@ -1154,8 +1155,8 @@ function openDialog(task){
       <div class="portrait-wrap"><div class="portrait" id="portraitEl">${portrait(ev.char,'normal')}</div></div>
     </div>
     <div class="dlg-info">
-      <div class="dlg-name" id="dlgName">${char?.name||"？"}</div>
-      <div class="dlg-role">${char?.role||""}</div>
+      <div class="dlg-name" id="dlgName">${displayName(ev.char)}</div>
+      <div class="dlg-role">${displayRole(ev.char)}</div>
       <div class="dlg-tags">${(char?.tags||[]).map(t=>`<span class="dlg-tag">${t}</span>`).join("")}</div>
     </div>
     <div class="dlg-body">
@@ -1183,7 +1184,7 @@ function renderLine(){
   const pEl=document.getElementById("portraitEl");
   pEl.innerHTML=portrait(line.s,line.e||"normal");
   if(line.e==="angry"){ pEl.classList.add("shake"); AUDIO.angry(); setTimeout(()=>pEl.classList.remove("shake"),400);}
-  document.getElementById("dlgName").textContent=char?.name||"？";
+  document.getElementById("dlgName").textContent=displayName(line.s);
   // typewriter
   const lineDiv=document.createElement("div");
   lineDiv.className="dlg-line"+(line.inner?" inner":"");
@@ -1462,7 +1463,7 @@ function doEndDay(){
     const cost = S.units.length * dailyCost;
     income = gross - cost;
     incomeMsg = `收 ${paidUnits}/${S.units.length} 戶租金 +$${gross.toLocaleString()} / 付大房東 -$${cost.toLocaleString()} / 淨 +$${income.toLocaleString()}`;
-    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租你自己吞`;
+    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租你自己吞（還是要付大房東）`;
   } else {
     // 代管業：欠租戶不算你的管理費
     const grossPaid = paidUnits * dailyRent;
@@ -1512,6 +1513,21 @@ function updateSceneBg(){
 }
 
 function fmtTime(mins){const h=Math.floor(mins/60),m=mins%60;return `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}`;}
+
+// 根據經營模式調整角色稱呼（大房東 vs 房東、二房東稱呼）
+function displayName(cid){
+  const c = CHARACTERS[cid]; if(!c) return "？";
+  if(cid==="boss") return S.bizMode==="management" ? "房東" : "大房東";
+  if(cid==="bao")  return S.bizMode==="management" ? "阿寶（同業）" : "阿寶（二房東）";
+  return c.name;
+}
+function displayRole(cid){
+  const c = CHARACTERS[cid]; if(!c) return "";
+  if(cid==="boss") return S.bizMode==="management" ? "你服務的屋主" : "你的大房東";
+  if(cid==="bao")  return S.bizMode==="management" ? "同業介紹人" : "二房東·介紹人";
+  if(cid==="self") return S.bizMode==="management" ? "你（代管業者）" : "你（包租業者）";
+  return c.role;
+}
 
 /* ============ END ============ */
 function checkEnd(){
@@ -1712,7 +1728,7 @@ function startGame(){
   document.getElementById("actionBar").classList.remove("hide");
   AUDIO.init();AUDIO.page();
   generateDayTasks();buildScene();updateHUD();renderActions();updateSceneBg();
-  const modeTxt = S.bizMode==="sublease" ? "包租業（自付大房東、全收租客）" : `代管業（抽 ${Math.round(S.mgmtFeeRate*100)}% 管理費）`;
+  const modeTxt = S.bizMode==="sublease" ? "包租業（付大房東、收租客）" : `代管業（代房東管房，抽 ${Math.round(S.mgmtFeeRate*100)}% 管理費）`;
   toast(`☀️ Day 1 09:00｜${modeTxt}`);
 }
 
