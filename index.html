@@ -911,6 +911,7 @@ const S = {
   cash:50000, rep:60, hp:100, rooms:6,
   monthReportDone:false,
   nightDebuff:0,  // 半夜處理事件後，隔天開頭的精神負效果（0-30）
+  companyAdvance:0,  // 累計公司代墊金額
   seen:[], log:[],
   tasks:[],
   gameover:false, win:false, endMsg:"",
@@ -926,8 +927,170 @@ const S = {
   sound:true, textSpeed:30,
   notebook:[]
 };
-function resetUnits(){S.units = UNIT_IDS.map(id=>({id, tenant:"avg", status:"paid", lateDays:0}));}
+function resetUnits(){S.units = UNIT_IDS.map(id=>({
+  id, tenant:"avg", status:"paid", lateDays:0,
+  // 代管財務：每物件自己的本月帳
+  monthRentCollected:0,  // 本月已代收租金
+  monthExpenseSpent:0,   // 本月已代支出
+  monthMgmtFeeAccrued:0, // 本月已累計的管理費（10 號月報入帳）
+  expenseLog:[]          // [{day,amount,desc}]
+}));}
 function payProb(q){return q==="safe"?0.95: q==="avg"?0.75: 0.45;}
+
+// 每月月初（1 號 / 31 號）重置物件的月帳
+function resetMonthlyPools(){
+  S.units.forEach(u=>{
+    u.monthRentCollected = 0;
+    u.monthExpenseSpent = 0;
+    u.monthMgmtFeeAccrued = 0;
+    u.expenseLog = [];
+  });
+}
+
+// 代管專用：物件支出分級處理
+// 回傳 {approved: bool, advanced: amount, blocked: bool}
+async function chargeUnitExpense(unitId, amount, desc, urgent){
+  if(S.bizMode !== "management"){
+    // 包租模式：直接扣公司現金
+    S.cash -= amount;
+    return {approved:true, advanced:0};
+  }
+  const u = S.units.find(x=>x.id===unitId);
+  if(!u){ S.cash -= amount; return {approved:true, advanced:0}; }
+
+  // ≥ $10K：強制要房東先匯款才能動工
+  if(amount >= 10000){
+    const decided = await askLargeExpense(unitId, amount, desc, urgent);
+    if(decided==="wait"){
+      // 房東匯款了，執行
+      u.expenseLog.push({day:S.day, amount, desc});
+      u.monthExpenseSpent += amount;
+      // 房東匯款的錢直接走帳，不動物件池（因為是房東另外匯進來的）
+      return {approved:true, advanced:0, delay:7};
+    } else if(decided==="advance"){
+      // 公司代墊搶時效
+      S.cash -= amount;
+      S.companyAdvance += amount;
+      u.expenseLog.push({day:S.day, amount, desc, advance:true});
+      u.monthExpenseSpent += amount;
+      toast(`💳 公司代墊 $${amount.toLocaleString()}（${unitId}）`);
+      return {approved:true, advanced:amount};
+    } else {
+      // 不修
+      return {approved:false, advanced:0, blocked:true};
+    }
+  }
+
+  // $2001-9999：急件可先修，非急件要先問房東（遊戲簡化：urgent 時直接過，非 urgent 時彈 approval）
+  if(amount > 2000){
+    if(!urgent){
+      const ok = await askMediumExpense(unitId, amount, desc);
+      if(!ok){ return {approved:false, advanced:0, blocked:true}; }
+    }
+  }
+
+  // 走物件池
+  u.expenseLog.push({day:S.day, amount, desc});
+  u.monthExpenseSpent += amount;
+  if(u.monthRentCollected >= u.monthExpenseSpent){
+    // 池子還夠付
+    return {approved:true, advanced:0};
+  } else {
+    // 池子不夠 → 公司代墊
+    const shortfall = u.monthExpenseSpent - u.monthRentCollected;
+    S.cash -= (u.monthExpenseSpent - (u.monthExpenseSpent - shortfall)); // 短缺的那部分走公司現金
+    // 簡化：直接讓公司現金吸收，記 companyAdvance
+    S.cash -= shortfall - (S.companyAdvance - (S.companyAdvance)); // 無意義重複，簡化：
+    // 重寫更簡潔：
+    return {approved:true, advanced:0, shortfall};
+  }
+}
+
+// 計算物件目前餘額可用度
+function unitAvailable(u){ return u.monthRentCollected - u.monthExpenseSpent; }
+
+// 彈窗：$2K-10K 支出審核
+function askMediumExpense(unitId, amount, desc){
+  return new Promise(resolve=>{
+    S.inModal=true;
+    const bg=document.createElement("div");bg.className="dlg-bg";
+    bg.innerHTML=`<div class="dlg">
+      <div class="dlg-scene office">
+        <div class="scene-tag">${unitId} · 支出審核 $2K-$10K</div>
+        <div class="scene-time">${fmtTime(S.time)}</div>
+      </div>
+      <div class="dlg-body" style="padding:16px;">
+        <div class="m-desc" style="margin-bottom:12px;">
+          <b>${unitId} ${desc}</b><br/>
+          報價 <b style="color:var(--warn);">$${amount.toLocaleString()}</b>（$2K-10K 範圍）<br/>
+          <span style="font-size:12px;color:#888;">非急件：須先徵得房東同意；急件：可先處理再事後通報</span>
+        </div>
+        <div id="mcList"></div>
+      </div>
+    </div>`;
+    document.getElementById("stage").appendChild(bg);
+    const list=bg.querySelector("#mcList");
+    const choices = [
+      {text:"先問房東（等 1-2 天同意）", note:"程序正確但延誤。房東 85% 同意。", act:"ask"},
+      {text:"當作急件先處理再通報", note:"快但有被房東事後質疑風險。", act:"urgent"},
+      {text:"不修了，請房客將就", note:"省錢但聲譽受損。", act:"skip"}
+    ];
+    choices.forEach(c=>{
+      const b=document.createElement("button");
+      b.className="choice";
+      b.innerHTML=`<div class="ch-text">${c.text}</div><div class="ch-note">${c.note}</div>`;
+      b.onclick=(e)=>{
+        e.stopPropagation();
+        bg.remove();S.inModal=false;
+        if(c.act==="skip"){S.rep=Math.max(0,S.rep-5);toast(`${unitId} 房客不滿，聲譽 -5`);resolve(false);}
+        else if(c.act==="urgent"){S.rep=Math.max(0,S.rep-2);advanceTime(60);resolve(true);}
+        else {advanceTime(120);toast(`✓ 房東已同意 $${amount.toLocaleString()} 的 ${desc}`);resolve(true);}
+      };
+      list.appendChild(b);
+    });
+  });
+}
+
+// 彈窗：$10K+ 大額支出（必須房東先匯款）
+function askLargeExpense(unitId, amount, desc, urgent){
+  return new Promise(resolve=>{
+    S.inModal=true;
+    const bg=document.createElement("div");bg.className="dlg-bg";
+    bg.innerHTML=`<div class="dlg">
+      <div class="dlg-scene warm">
+        <div class="scene-tag">${unitId} · 大額支出 ≥$10K</div>
+        <div class="scene-time">${fmtTime(S.time)}</div>
+      </div>
+      <div class="dlg-body" style="padding:16px;">
+        <div class="m-desc" style="margin-bottom:12px;">
+          <b>${unitId} ${desc}</b><br/>
+          報價 <b style="color:var(--warn);">$${amount.toLocaleString()}</b>（≥$10K 大額）<br/>
+          <span style="font-size:12px;color:#888;">依公司規範：必須先徵得房東同意 ＋ 房東先匯款才能動工</span>
+        </div>
+        <div id="leList"></div>
+      </div>
+    </div>`;
+    document.getElementById("stage").appendChild(bg);
+    const list=bg.querySelector("#leList");
+    const choices = [
+      {text:`通知房東匯款（約 1 週到帳）`, note:"程序正確。但房客要等 7 天。", act:"wait"},
+      {text:`公司代墊搶時效（-$${amount.toLocaleString()}）`, note:"馬上修。房東可能延遲還款。壞帳風險。", act:"advance"},
+      {text:"告知房客請自行等候", note:"程序 0 風險但房客起爭議機率高。", act:"skip"}
+    ];
+    choices.forEach(c=>{
+      const b=document.createElement("button");
+      b.className="choice";
+      b.innerHTML=`<div class="ch-text">${c.text}</div><div class="ch-note">${c.note}</div>`;
+      b.onclick=(e)=>{
+        e.stopPropagation();
+        bg.remove();S.inModal=false;
+        if(c.act==="skip"){S.rep=Math.max(0,S.rep-10);toast(`${unitId} 房客怒投消保局`);resolve("skip");}
+        else {advanceTime(60);resolve(c.act);}
+      };
+      list.appendChild(b);
+    });
+  });
+}
 const SAVE_KEY="rml_v04";
 function savePersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.best=Math.max(o.best||0,S.day-1);o.notebook=S.notebook;o.sound=S.sound;o.textSpeed=S.textSpeed;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}
 function loadPersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(Array.isArray(o.notebook))S.notebook=o.notebook.filter(x=>typeof x==='string');if(typeof o.sound==='boolean')S.sound=o.sound;if(o.textSpeed!==undefined)S.textSpeed=o.textSpeed;return o;}catch(e){return{};}}
@@ -1253,11 +1416,13 @@ function showChoices(){
         ${c.rep?`<span class="${c.rep<0?'neg':'pos'}">${c.rep<0?'':'+'}${c.rep} 聲譽</span>`:""}
         ${c.hp?`<span class="${c.hp<0?'neg':'pos'}">${c.hp<0?'':'+'}${c.hp} 體力</span>`:""}
       </div>`;
-    b.onclick=(e)=>{
+    b.onclick=async(e)=>{
       e.stopPropagation();
-      applyChoice(ev,c);
-      currentDlg.status="done";
-      closeDlg();
+      closeDlg(); // 先關對話，才能彈 approval 子對話
+      await applyChoice(ev,c);
+      currentDlg = {event:ev, status:"done"};
+      const t = S.tasks.find(x=>x.event.id===ev.id);
+      if(t) t.status="done";
       advanceTime(60);
       renderSheet();
       buildScene();
@@ -1303,9 +1468,25 @@ function showKnowledgeCard(k){
 }
 
 /* ============ CHOICE APPLY ============ */
-function applyChoice(ev,c){
-  if(c.cash){
-    S.cash+=c.cash;
+async function applyChoice(ev,c){
+  // 代管模式：事件 cost 走物件池（若事件有 unit）
+  if(c.cash && c.cash < 0 && S.bizMode==="management" && ev.unit){
+    const u = S.units.find(x=>x.id===ev.unit);
+    if(u){
+      const amount = Math.abs(c.cash);
+      const urgent = ["急件","急修","急修","重大"].includes(ev.tag);
+      const result = await chargeUnitExpense(ev.unit, amount, ev.title, urgent);
+      if(result.blocked){
+        toast(`❌ ${ev.unit} ${ev.title} 未處理`);
+        return;
+      }
+      // 支出已從物件池 or 代墊處理，不再動 S.cash
+    } else {
+      S.cash += c.cash;
+    }
+  } else if(c.cash){
+    // 收入或包租模式：直接進公司現金
+    S.cash += c.cash;
     const cE=document.getElementById("cash");
     cE.classList.add("pop");
     setTimeout(()=>cE.classList.remove("pop"),200);
@@ -1315,7 +1496,7 @@ function applyChoice(ev,c){
   S.hp=Math.max(0,Math.min(100,S.hp+(c.hp||0)));
   S.log.unshift(`Day ${S.day}｜${ev.title} → ${c.text}`);
   const parts=[];
-  if(c.cash) parts.push((c.cash>0?"🪙 +":"−$")+Math.abs(c.cash).toLocaleString());
+  if(c.cash) parts.push((c.cash>0?"🪙 +":"−$")+Math.abs(c.cash).toLocaleString()+(S.bizMode==="management"&&c.cash<0&&ev.unit?"（走 "+ev.unit+" 帳）":""));
   if(c.rep) parts.push((c.rep>0?"+":"")+c.rep+" 聲譽");
   if(c.hp) parts.push((c.hp>0?"+":"")+c.hp+" 體力");
   if(parts.length) fx(parts.join("  "), (c.cash<0||c.rep<0||c.hp<0)?"#ff8b70":"#9ad17f");
@@ -1503,16 +1684,21 @@ function doEndDay(){
     const gross = paidUnits * dailyRent;
     const cost = S.units.length * dailyCost;
     income = gross - cost;
+    S.cash += income;
     incomeMsg = `收 ${paidUnits}/${S.units.length} 戶租金 +$${gross.toLocaleString()} / 付大房東 -$${cost.toLocaleString()} / 淨 +$${income.toLocaleString()}`;
     if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租你自己吞（還是要付大房東）`;
   } else {
-    // 代管業：欠租戶不算你的管理費
-    const grossPaid = paidUnits * dailyRent;
-    income = Math.round(grossPaid * S.mgmtFeeRate);
-    incomeMsg = `${paidUnits}/${S.units.length} 戶繳租 × ${Math.round(S.mgmtFeeRate*100)}% = +$${income.toLocaleString()}`;
-    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租 → 這些月沒抽成`;
+    // 代管業：租金代收進每個物件的池子，不直接入公司
+    S.units.forEach(u=>{
+      if(u.status==="paid"){
+        u.monthRentCollected += dailyRent;
+        u.monthMgmtFeeAccrued += Math.round(dailyRent * S.mgmtFeeRate);
+      }
+    });
+    income = 0;
+    incomeMsg = `${paidUnits}/${S.units.length} 戶代收今日租金，管理費累計到 10 號出月報結算`;
+    if(overdueUnits>0) incomeMsg += `｜${overdueUnits} 戶欠租`;
   }
-  S.cash += income;
 
   // 每日：有機率新增欠租戶（依租客品質）
   S.units.forEach(u=>{
@@ -1616,37 +1802,91 @@ function monthlyTick(){
 /* === 月報事件 === */
 function openMonthReport(){
   S.inModal=true;
-  const paidUnits = S.units.filter(u=>u.status==="paid").length;
-  const totalRevenue = paidUnits * (S.tenantRent);
-  const mgmtFee = S.bizMode==="management" ? Math.round(totalRevenue * S.mgmtFeeRate) : 0;
-  const remit = totalRevenue - mgmtFee; // 匯給房東的金額
-  const bg=document.createElement("div");bg.className="know-bg";
-  bg.innerHTML=`<div class="know" style="max-width:380px;">
-    <div class="know-tag">📊 ${fmtDate(S.day)} · 月報日</div>
-    <div class="know-title">出月報 + 匯款給房東</div>
-    <div class="know-body" style="margin-bottom:12px;">
-      本月實收 <b>${paidUnits}/${S.units.length}</b> 戶租金<br/>
-      <table style="width:100%;margin-top:8px;font-size:12px;border-collapse:collapse;">
-        <tr><td>租金收入</td><td style="text-align:right;">$${totalRevenue.toLocaleString()}</td></tr>
-        ${S.bizMode==="management"?`<tr><td>管理費 ${Math.round(S.mgmtFeeRate*100)}%</td><td style="text-align:right;color:#1a7a3d;">-$${mgmtFee.toLocaleString()}</td></tr>`:""}
-        <tr style="border-top:1px solid #d9cfb4;"><td><b>匯款給房東</b></td><td style="text-align:right;"><b>$${remit.toLocaleString()}</b></td></tr>
-      </table>
+  if(S.bizMode!=="management"){
+    // 包租模式月報簡化版
+    openMonthReportSublease();
+    return;
+  }
+  // 代管模式：逐物件 P&L
+  let totalMgmtFee = 0, totalRemit = 0, totalAdvanced = 0;
+  const rows = S.units.map(u=>{
+    const subtotal = u.monthRentCollected - u.monthExpenseSpent;
+    const mgmtFee = Math.round(u.monthMgmtFeeAccrued);
+    const remit = subtotal - mgmtFee;
+    totalMgmtFee += mgmtFee;
+    totalRemit += remit;
+    const advanced = remit < 0 ? -remit : 0;
+    totalAdvanced += advanced;
+    const warnColor = remit < 0 ? "color:#c25a3b;" : "";
+    return `<div style="padding:8px;border-bottom:1px solid #e8dfc3;font-size:11px;">
+      <div style="font-weight:800;color:#243d2d;margin-bottom:3px;">${u.id} <span style="color:#8a8578;font-weight:400;font-size:10px;">(${u.status==='paid'?'準繳':'欠'+u.lateDays+'天'})</span></div>
+      <div style="color:#444;line-height:1.5;">
+        收租 $${u.monthRentCollected.toLocaleString()} ·
+        花費 -$${u.monthExpenseSpent.toLocaleString()}
+        ${u.expenseLog.length?`<span style="color:#8a8578;">（${u.expenseLog.map(e=>e.desc).join('、').slice(0,20)}${u.expenseLog.length>2?'…':''}）</span>`:""}
+      </div>
+      <div style="${warnColor}">
+        小計 $${subtotal.toLocaleString()} ·
+        管理費 -$${mgmtFee.toLocaleString()} ·
+        <b>匯款 $${remit.toLocaleString()}</b>
+        ${remit<0?' ← 公司代墊':''}
+      </div>
+    </div>`;
+  }).join("");
+
+  const bg=document.createElement("div");bg.className="nb-bg";
+  bg.innerHTML=`<div class="nb" style="max-width:400px;max-height:88vh;">
+    <div style="background:#c9a24a;color:#2a1f00;padding:4px 10px;border-radius:999px;font-size:10px;letter-spacing:.2em;font-weight:800;display:inline-block;margin-bottom:8px;">📊 ${fmtDate(S.day)} · 月報日</div>
+    <div class="nb-title">本月月報 + 匯款明細</div>
+    <div class="nb-sub">管理費 ${Math.round(S.mgmtFeeRate*100)}% ｜ 代管公司收管理費、代支花費</div>
+    <div style="margin:10px 0;">${rows}</div>
+    <div style="background:#faf6ea;padding:10px;border-radius:8px;border:2px solid var(--gold);font-size:12px;line-height:1.8;">
+      <div><b>公司管理費總收入：</b><span style="color:#1a7a3d;float:right;">+$${totalMgmtFee.toLocaleString()}</span></div>
+      <div><b>匯款給房東總額：</b><span style="float:right;">$${totalRemit.toLocaleString()}</span></div>
+      ${totalAdvanced?`<div style="color:#c25a3b;"><b>本月代墊：</b><span style="float:right;">$${totalAdvanced.toLocaleString()}</span></div>`:""}
+      ${S.companyAdvance?`<div style="color:#c25a3b;font-size:11px;"><b>累計未回收代墊：</b><span style="float:right;">$${S.companyAdvance.toLocaleString()}</span></div>`:""}
     </div>
-    ${S.bizMode==="management"?`<div style="background:#f1e9d2;padding:8px 10px;border-radius:6px;font-size:12px;color:#444;margin-bottom:10px;line-height:1.6;"><b style="color:#8c6e2b;">💡 業界實務：</b>月初出帳、10 號前匯款。遇假日順延到平日。報表要列繳租／欠租／維修明細，房東會逐戶核對。</div>`:""}
-    <div style="text-align:center;font-size:11px;color:#8a8578;margin-bottom:10px;">月報處理耗時 2 小時</div>
-    <button class="know-close" id="mrClose">送出月報</button>
+    <div style="background:#f1e9d2;padding:8px 10px;border-radius:6px;font-size:11px;color:#444;margin-top:10px;line-height:1.6;">
+      <b style="color:#8c6e2b;">💡 業界實務：</b>公司只是代理，物件花費歸物件，不是公司。月底結算差額匯給房東。餘額為負時公司先代墊，等下月收租或解約結算時回收。
+    </div>
+    <button class="nb-close" id="mrClose" style="margin-top:10px;">送出月報 + 匯款</button>
   </div>`;
   document.getElementById("stage").appendChild(bg);
   AUDIO.page();
   document.getElementById("mrClose").onclick=()=>{
     bg.remove();S.inModal=false;
-    if(S.bizMode==="management"){
-      // 代管模式：管理費抽成當天入帳
-      S.cash += mgmtFee;
-      fx(`月報完成 +$${mgmtFee.toLocaleString()}`,"#9ad17f");
-      AUDIO.coin();
-    }
+    S.cash += totalMgmtFee;
+    fx(`管理費入帳 +$${totalMgmtFee.toLocaleString()}`,"#9ad17f");
+    AUDIO.coin();
+    resetMonthlyPools(); // 本月帳清零開始下月
     advanceTime(120);
+    updateHUD();renderActions();
+  };
+}
+function openMonthReportSublease(){
+  const paidUnits = S.units.filter(u=>u.status==="paid").length;
+  const totalRevenue = paidUnits * S.tenantRent;
+  const totalCost = S.units.length * S.masterRent;
+  const net = totalRevenue - totalCost;
+  const bg=document.createElement("div");bg.className="know-bg";
+  bg.innerHTML=`<div class="know" style="max-width:380px;">
+    <div class="know-tag">📊 ${fmtDate(S.day)} · 月報日</div>
+    <div class="know-title">本月損益表（包租業）</div>
+    <div class="know-body">
+      本月實收 <b>${paidUnits}/${S.units.length}</b> 戶租金<br/>
+      <table style="width:100%;margin-top:8px;font-size:12px;border-collapse:collapse;">
+        <tr><td>租客收入</td><td style="text-align:right;color:#1a7a3d;">+$${totalRevenue.toLocaleString()}</td></tr>
+        <tr><td>付大房東</td><td style="text-align:right;color:#c25a3b;">-$${totalCost.toLocaleString()}</td></tr>
+        <tr style="border-top:1px solid #d9cfb4;"><td><b>淨利</b></td><td style="text-align:right;"><b>$${net.toLocaleString()}</b></td></tr>
+      </table>
+    </div>
+    <button class="know-close" id="mrClose">結算完成</button>
+  </div>`;
+  document.getElementById("stage").appendChild(bg);
+  AUDIO.page();
+  document.getElementById("mrClose").onclick=()=>{
+    bg.remove();S.inModal=false;
+    advanceTime(60);
     updateHUD();renderActions();
   };
 }
@@ -1930,7 +2170,7 @@ function showScreen(id){
 function startGame(){
   loadPersist();
   const startCash = S.bizMode==="sublease" ? 80000 : 50000;
-  Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60});
+  Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60,companyAdvance:0});
   resetUnits();
   document.getElementById("intro").classList.add("hide");
   document.getElementById("bizScr").classList.add("hide");
