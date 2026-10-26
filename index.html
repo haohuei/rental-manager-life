@@ -219,12 +219,18 @@
     <h1 class="title-logo title-xl">租賃管理<br/>人員的人森</h1>
     <div class="sub"><span class="sub-type" id="subType"></span></div>
     <div class="card-i">
-      你是 <b>老柯</b>，剛創業的租賃管理人員。<br/>
+      你是剛創業的租賃管理人員。<br/>
       手上 6 間套房 + 1 間辦公室，每天 <b>11:00</b> 進辦公室看交班單（20:00 下班，但緊急事件全天待命）。<br/>
       點位置或按鈕走過去，<b>和房客對話，做出選擇</b>。<br/>
       撐 <b>60 天（2 個月）</b> 不破產、不過勞、不黑掉就贏。<br/>
       <span style="color:var(--gold);">月流程：5 號前繳租期 ｜ 6-10 號催繳期 ｜ 10 號出月報匯款房東</span><br/>
       <b style="color:var(--warn);">玩完你比 90% 的新手房東懂規矩。</b>
+    </div>
+
+    <div style="max-width:340px;width:100%;margin-bottom:14px;background:rgba(241,233,210,.06);border:1px solid rgba(241,233,210,.2);border-radius:10px;padding:10px 12px;">
+      <div style="font-size:11px;letter-spacing:.2em;color:var(--moss);margin-bottom:6px;">你的名字（會出現在遊戲裡）</div>
+      <input id="playerNameInput" placeholder="例：老柯 / 阿明 / Alice" maxlength="10" style="width:100%;padding:9px 10px;border:1px solid rgba(241,233,210,.3);border-radius:6px;background:rgba(15,31,23,.5);color:var(--beige);font-family:inherit;font-size:14px;">
+      <div style="font-size:10px;color:rgba(241,233,210,.5);margin-top:5px;">留空會自動用「老柯」</div>
     </div>
     <div class="mode-pick">
       <div class="mode primary" data-mode="exp"><b>體驗版</b><span>固定劇本<br/>15+ 對話事件</span></div>
@@ -912,6 +918,7 @@ const S = {
   monthReportDone:false,
   nightDebuff:0,  // 半夜處理事件後，隔天開頭的精神負效果（0-30）
   companyAdvance:0,  // 累計公司代墊金額
+  playerName:"老柯",
   seen:[], log:[],
   tasks:[],
   gameover:false, win:false, endMsg:"",
@@ -1093,7 +1100,7 @@ function askLargeExpense(unitId, amount, desc, urgent){
 }
 const SAVE_KEY="rml_v04";
 function savePersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.best=Math.max(o.best||0,S.day-1);o.notebook=S.notebook;o.sound=S.sound;o.textSpeed=S.textSpeed;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}
-function loadPersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(Array.isArray(o.notebook))S.notebook=o.notebook.filter(x=>typeof x==='string');if(typeof o.sound==='boolean')S.sound=o.sound;if(o.textSpeed!==undefined)S.textSpeed=o.textSpeed;return o;}catch(e){return{};}}
+function loadPersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(Array.isArray(o.notebook))S.notebook=o.notebook.filter(x=>typeof x==='string');if(typeof o.sound==='boolean')S.sound=o.sound;if(o.textSpeed!==undefined)S.textSpeed=o.textSpeed;if(o.playerName)S.playerName=o.playerName;return o;}catch(e){return{};}}
 function getBest(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}').best||0;}catch(e){return 0;}}
 
 /* ============ WEB AUDIO SYNTH ============ */
@@ -1362,16 +1369,17 @@ function renderLine(){
   holder.appendChild(nxt);
   const textEl=lineDiv.querySelector(".dlg-text");
   const caret=lineDiv.querySelector(".caret");
+  const subbed = subName(line.t);
   let i=0;
   clearInterval(typingTimer);
   typingTimer=setInterval(()=>{
-    if(i>=line.t.length){
+    if(i>=subbed.length){
       clearInterval(typingTimer);
       caret.style.display="none";
       nxt.classList.remove("hide");
       return;
     }
-    textEl.textContent+=line.t[i];
+    textEl.textContent+=subbed[i];
     if(i%4===0) AUDIO.beep();
     i++;
   }, S.textSpeed);
@@ -1386,8 +1394,9 @@ function advanceDialog(){
     const holder=document.getElementById("lineHolder");
     const textEl=holder.querySelector(".dlg-text");
     const caret=holder.querySelector(".caret");
-    if(textEl && line && textEl.textContent!==line.t){
-      textEl.textContent=line.t;
+    const want = subName(line?.t||"");
+    if(textEl && line && textEl.textContent!==want){
+      textEl.textContent=want;
       caret.style.display="none";
       holder.querySelector(".dlg-next")?.classList.remove("hide");
       return;
@@ -1409,8 +1418,8 @@ function showChoices(){
   ev.choices.forEach(c=>{
     const b=document.createElement("button");
     b.className="choice";
-    b.innerHTML=`<div class="ch-text">${c.text}</div>
-      <div class="ch-note">${c.note||""}</div>
+    b.innerHTML=`<div class="ch-text">${subName(c.text)}</div>
+      <div class="ch-note">${subName(c.note||"")}</div>
       <div class="ch-deltas">
         ${c.cash?`<span class="${c.cash<0?'neg':'pos'}">${c.cash<0?'':'+'}$${c.cash.toLocaleString()}</span>`:""}
         ${c.rep?`<span class="${c.rep<0?'neg':'pos'}">${c.rep<0?'':'+'}${c.rep} 聲譽</span>`:""}
@@ -1960,9 +1969,16 @@ function openCertifiedLetter(units){
 // 根據經營模式調整角色稱呼（大房東 vs 房東、二房東稱呼）
 function displayName(cid){
   const c = CHARACTERS[cid]; if(!c) return "？";
+  if(cid==="self") return S.playerName || "老柯";
   if(cid==="boss") return S.bizMode==="management" ? "房東" : "大房東";
   if(cid==="bao")  return S.bizMode==="management" ? "阿寶（同業）" : "阿寶（二房東）";
   return c.name;
+}
+// 替換對白／結局中的「老柯」「柯哥」「柯先生」「柯老闆」為玩家名
+function subName(text){
+  if(!text) return text;
+  const n = S.playerName || "老柯";
+  return text.replace(/老柯|柯哥|柯先生|柯老闆/g, n);
 }
 function displayRole(cid){
   const c = CHARACTERS[cid]; if(!c) return "";
@@ -1984,8 +2000,8 @@ function checkEnd(){
   else if(S.rep<=0){end("lose","聲譽歸零","爆料公社頭版，再也沒人要租你的房。你刪掉所有物件，低調離開這個圈子。");}
   else if(S.hp<=0){end("lose","精神崩潰","你凌晨 3 點在便利商店前坐了 2 小時。老婆接到你的電話哭了。你決定退出房東圈。");}
   else if(S.day>S.maxDay){
-    if(S.cash>=200000 && S.rep>=80){end("epic","升級·自有房東","30 天內你撐住了，而且還賺了頭期款。你把老柯代管升級成「柯氏房產」，開始買下第一間自己的物件。恭喜。");}
-    else if(S.rep>=90){end("epic","最佳房東","你撐過了 30 天，而且每個房客都幫你寫五星好評。里長推薦你去市府接案。老柯成了業界傳奇。");}
+    if(S.cash>=200000 && S.rep>=80){end("epic","升級·自有房東",`60 天內你撐住了，而且還賺了頭期款。你把 ${S.playerName}代管 升級，開始買下第一間自己的物件。恭喜。`);}
+    else if(S.rep>=90){end("epic","最佳房東",`你撐過了 60 天，而且每個房客都幫你寫五星好評。里長推薦你去市府接案。${S.playerName} 成了業界傳奇。`);}
     else{end("win","合格的租賃管理人員","你撐過了 30 天。恭喜，你正式成為一名合格的租賃管理人員。繼續下個月。");}
   }
 }
@@ -2170,7 +2186,8 @@ function showScreen(id){
 function startGame(){
   loadPersist();
   const startCash = S.bizMode==="sublease" ? 80000 : 50000;
-  Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60,companyAdvance:0});
+  const keepName = S.playerName || "老柯";
+  Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60,companyAdvance:0,playerName:keepName});
   resetUnits();
   document.getElementById("intro").classList.add("hide");
   document.getElementById("bizScr").classList.add("hide");
@@ -2186,8 +2203,14 @@ function startGame(){
   toast(`☀️ Day 1 ${fmtDate(1)} 11:00｜${modeTxt}`);
 }
 
-// Intro Start → bizScr
-document.getElementById("startBtn").onclick=()=>{showScreen("bizScr");AUDIO.page();};
+// Intro Start → bizScr（捕捉玩家名字）
+document.getElementById("startBtn").onclick=()=>{
+  const inp = document.getElementById("playerNameInput");
+  const v = (inp?.value||"").trim();
+  S.playerName = v || "老柯";
+  try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.playerName=S.playerName;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}
+  showScreen("bizScr");AUDIO.page();
+};
 document.getElementById("bizBack").onclick=()=>{showScreen("intro");};
 // Pick 包租 → start directly
 document.getElementById("pickSublease").onclick=()=>{S.bizMode="sublease";startGame();};
@@ -2215,6 +2238,9 @@ document.getElementById("shareBtn").onclick=()=>{
 
 loadPersist();
 typeSubtitle();
+// 預填玩家名字
+const pni = document.getElementById("playerNameInput");
+if(pni && S.playerName && S.playerName!=="老柯") pni.value = S.playerName;
 </script>
 </body>
 </html>
