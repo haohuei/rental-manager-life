@@ -228,9 +228,9 @@
     </div>
 
     <div style="max-width:340px;width:100%;margin-bottom:14px;background:rgba(241,233,210,.06);border:1px solid rgba(241,233,210,.2);border-radius:10px;padding:10px 12px;">
-      <div style="font-size:11px;letter-spacing:.2em;color:var(--moss);margin-bottom:6px;">你的名字（會出現在遊戲裡）</div>
-      <input id="playerNameInput" placeholder="例：老柯 / 阿明 / Alice" maxlength="10" style="width:100%;padding:9px 10px;border:1px solid rgba(241,233,210,.3);border-radius:6px;background:rgba(15,31,23,.5);color:var(--beige);font-family:inherit;font-size:14px;">
-      <div style="font-size:10px;color:rgba(241,233,210,.5);margin-top:5px;">留空會自動用「老柯」</div>
+      <div style="font-size:11px;letter-spacing:.2em;color:var(--moss);margin-bottom:6px;">你的名字（必填·會出現在遊戲裡）</div>
+      <input id="playerNameInput" placeholder="輸入你的名字⋯" maxlength="10" style="width:100%;padding:9px 10px;border:1px solid rgba(241,233,210,.3);border-radius:6px;background:rgba(15,31,23,.5);color:var(--beige);font-family:inherit;font-size:14px;">
+      <div style="font-size:10px;color:rgba(241,233,210,.5);margin-top:5px;">遊戲裡所有租客／房東／里長都會這樣叫你</div>
     </div>
     <div class="mode-pick">
       <div class="mode primary" data-mode="exp"><b>體驗版</b><span>固定劇本<br/>15+ 對話事件</span></div>
@@ -586,8 +586,8 @@ const CHARACTERS = {
   wife:    {name:"老婆",     role:"你的另一半", tags:["體諒","心疼","深夜留燈"],
             beauty:"beautiful", skin:"#f3dcc0", hair:"#3a2a1a", hairStyle:"long", nose:"normal",
             bg:"#4a2f3f", shirt:"#c25a3b", earrings:true, blush:true},
-  // 老柯：中年疲態主角，有眼袋有法令紋
-  self:    {name:"老柯",     role:"你（代管房東）", tags:["內心 OS"],
+  // 主角：中年疲態，有眼袋有法令紋（名字由玩家輸入）
+  self:    {name:"你",       role:"你（代管房東）", tags:["內心 OS"],
             beauty:"normal", skin:"#d9b088", hair:"#1a1a1a", hairStyle:"short", nose:"normal",
             bg:"#243d2d", shirt:"#4a6a3d", eyebags:true, laughLines:true}
 };
@@ -918,7 +918,7 @@ const S = {
   monthReportDone:false,
   nightDebuff:0,  // 半夜處理事件後，隔天開頭的精神負效果（0-30）
   companyAdvance:0,  // 累計公司代墊金額
-  playerName:"老柯",
+  playerName:"",
   seen:[], log:[],
   tasks:[],
   gameover:false, win:false, endMsg:"",
@@ -1969,7 +1969,7 @@ function openCertifiedLetter(units){
 // 根據經營模式調整角色稱呼（大房東 vs 房東、二房東稱呼）
 function displayName(cid){
   const c = CHARACTERS[cid]; if(!c) return "？";
-  if(cid==="self") return S.playerName || "老柯";
+  if(cid==="self") return S.playerName || "你";
   if(cid==="boss") return S.bizMode==="management" ? "房東" : "大房東";
   if(cid==="bao")  return S.bizMode==="management" ? "阿寶（同業）" : "阿寶（二房東）";
   return c.name;
@@ -1977,7 +1977,7 @@ function displayName(cid){
 // 替換對白／結局中的「老柯」「柯哥」「柯先生」「柯老闆」為玩家名
 function subName(text){
   if(!text) return text;
-  const n = S.playerName || "老柯";
+  const n = S.playerName || "你";
   return text.replace(/老柯|柯哥|柯先生|柯老闆/g, n);
 }
 function displayRole(cid){
@@ -2186,7 +2186,7 @@ function showScreen(id){
 function startGame(){
   loadPersist();
   const startCash = S.bizMode==="sublease" ? 80000 : 50000;
-  const keepName = S.playerName || "老柯";
+  const keepName = S.playerName || "";
   Object.assign(S,{day:1,time:11*60,cash:startCash,rep:60,hp:100,rooms:6,seen:[],log:[],tasks:[],gameover:false,win:false,endMsg:"",playerPos:"office",running:true,inDialog:false,inModal:false,monthReportDone:false,nightDebuff:0,maxDay:60,companyAdvance:0,playerName:keepName});
   resetUnits();
   document.getElementById("intro").classList.add("hide");
@@ -2203,11 +2203,19 @@ function startGame(){
   toast(`☀️ Day 1 ${fmtDate(1)} 11:00｜${modeTxt}`);
 }
 
-// Intro Start → bizScr（捕捉玩家名字）
+// Intro Start → bizScr（捕捉玩家名字·必填）
 document.getElementById("startBtn").onclick=()=>{
   const inp = document.getElementById("playerNameInput");
   const v = (inp?.value||"").trim();
-  S.playerName = v || "老柯";
+  if(!v){
+    toast("請先輸入你的名字");
+    inp?.focus();
+    inp?.style.setProperty("border-color","var(--warn)");
+    inp?.style.setProperty("box-shadow","0 0 0 3px rgba(194,90,59,.2)");
+    setTimeout(()=>{inp?.style.removeProperty("border-color");inp?.style.removeProperty("box-shadow");},2000);
+    return;
+  }
+  S.playerName = v;
   try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.playerName=S.playerName;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}
   showScreen("bizScr");AUDIO.page();
 };
@@ -2238,9 +2246,9 @@ document.getElementById("shareBtn").onclick=()=>{
 
 loadPersist();
 typeSubtitle();
-// 預填玩家名字
+// 預填玩家名字（如果之前存過）
 const pni = document.getElementById("playerNameInput");
-if(pni && S.playerName && S.playerName!=="老柯") pni.value = S.playerName;
+if(pni && S.playerName) pni.value = S.playerName;
 </script>
 </body>
 </html>
