@@ -238,6 +238,7 @@
     </div>
     <button class="btn-p" id="startBtn">下一步 ▶</button>
     <button class="btn-g" id="notebookBtn">📓 我的筆記本</button>
+    <div id="bestRecord" style="max-width:340px;width:100%;margin-top:10px;font-size:11px;color:rgba(241,233,210,.55);text-align:center;"></div>
   </div>
 
   <!-- Business Mode Pick -->
@@ -905,6 +906,82 @@ const EVENTS = [
       {text:"「我在想要不要收掉這個業務」",cash:0,rep:0,hp:10,note:"你們聊到天亮。清楚了方向。"}
     ],
     kid:"k_cost"
+  },
+
+  /* === 好事卡（平衡難度）=== */
+  {
+    id:"wangma_pineapple", unit:"A101", title:"王媽媽送鳳梨酥", tag:"好事", time:"14:30", scene:"warm",
+    char:"wangma",
+    lines:[
+      {s:"wangma", e:"happy", t:"阿弟仔！上次半夜那件事我真的很感謝啦！"},
+      {s:"wangma", e:"happy", t:"自己家做的鳳梨酥，拿一盒給你太太吃～"},
+      {s:"self", e:"happy", t:"⋯⋯真的很香。王媽媽其實人很好。", inner:true}
+    ],
+    choices:[
+      {text:"「謝謝王媽媽，下次有事隨時打」",cash:0,rep:15,hp:10,note:"口碑擴散，A102 新客就是她介紹的。"},
+      {text:"「您太客氣了」收下，附張小卡感謝",cash:-100,rep:12,hp:8,note:"溫柔應對。她感動到幫你 Google 五星。"},
+      {text:"「不用啦這是我該做的」堅持退回",cash:0,rep:5,hp:5,note:"她略有失望但更尊敬你。"}
+    ],
+    kid:"k_viewing"
+  },
+  {
+    id:"realtor_good_tenant", unit:"業務", title:"仲介介紹台積工程師", tag:"好事", time:"10:00", scene:"office",
+    char:"bao",
+    lines:[
+      {s:"bao", e:"happy", t:"兄弟～跟你講個好事，台積廠的工程師要在附近租房～"},
+      {s:"bao", e:"normal", t:"收入穩、不囉嗦、年薪 200 起跳。這次仲介費算你半個月就好～"},
+      {s:"self", e:"normal", t:"阿寶偶爾還是有做人的時候。這種客我願意付。", inner:true}
+    ],
+    choices:[
+      {text:"「成交，仲介費匯給你」",cash:-10000,rep:8,hp:-2,note:"科技業租客入住。下 6 個月穩定收入。隨機 1 戶升級 safe。",screenGoodTenant:true},
+      {text:"殺到三分之一",cash:-7000,rep:3,hp:-3,note:"阿寶記仇但還是成交。"},
+      {text:"「我自己找就好」",cash:0,rep:0,hp:-1,note:"錯過好客。阿寶下次不會先想到你。"}
+    ],
+    kid:"k_viewing"
+  },
+  {
+    id:"boss_bonus", unit:"業務", title:"房東主動加管理費", tag:"好事", time:"13:00", scene:"office",
+    char:"boss",
+    lines:[
+      {s:"boss", e:"happy", t:"柯先生，這半年你處理得真的不錯。"},
+      {s:"boss", e:"normal", t:"我這邊打算把管理費從 10% 加到 12%。你辛苦了。"},
+      {s:"self", e:"happy", t:"⋯⋯終於有感恩的房東。這個禮物不能拒絕。", inner:true}
+    ],
+    choices:[
+      {text:"「謝謝信任，我會更用心」",cash:10000,rep:10,hp:15,note:"這一筆算是補發半年差額 $10K。從此管理費永久 +2%（本局未實作加碼，給現金）。"},
+      {text:"「其實你應該加到 15%」順勢議價",cash:15000,rep:-3,hp:10,note:"他愣了一下，同意了。但覺得你變了。"},
+      {text:"「照原本的 10% 就好」客氣推辭",cash:0,rep:20,hp:5,note:"他很意外。從此把你當自己人。"}
+    ],
+    kid:"k_pricing"
+  },
+  {
+    id:"chenli_cover", unit:"中庭", title:"陳里長幫你擋投訴", tag:"好事", time:"16:00", scene:"day",
+    char:"chenli",
+    lines:[
+      {s:"chenli", e:"happy", t:"柯老闆，剛剛對面那棟來跟我投訴你的 D401 唱卡拉 OK。"},
+      {s:"chenli", e:"scheming", t:"⋯⋯我跟他說是隔壁施工聲啦。你要的話去跟 D401 說一下。"},
+      {s:"self", e:"happy", t:"這人情欠大了。還好之前有送鳳梨酥。", inner:true}
+    ],
+    choices:[
+      {text:"「里長謝了，我請你喝咖啡」",cash:-200,rep:15,hp:3,note:"深化關係，下次更願意罩你。"},
+      {text:"「我馬上去提醒 D401」",cash:0,rep:10,hp:-5,note:"你跑一趟，小蔡乖乖收起麥克風。"},
+      {text:"「里長幫大忙了，有空來社區喝茶」",cash:0,rep:8,hp:0,note:"禮貌回應。他記在心裡。"}
+    ],
+    kid:"k_cleaning"
+  },
+  {
+    id:"ming_discount", unit:"B202", title:"水電工阿明打折", tag:"好事", time:"11:00", scene:"warm",
+    char:"ming",
+    lines:[
+      {s:"ming", e:"happy", t:"柯哥～這次 B202 的熱水器，老朋友價砍一半啦！"},
+      {s:"ming", e:"normal", t:"你每個月都給我做，不照顧你照顧誰～"}
+    ],
+    choices:[
+      {text:"「謝了阿明，中秋我送你月餅」",cash:-4000,rep:3,hp:5,note:"原本 $8K 砍到 $4K。阿明之後更願意半夜接電話。"},
+      {text:"「這樣真的好嗎？不要因為我少賺」",cash:-6000,rep:8,hp:3,note:"你堅持給他 $6K。他感動。"},
+      {text:"「那你幫我把 C305 也順便看一下」",cash:-4000,rep:1,hp:-3,note:"省錢但你利用了友情。他下次不會這麼熱情。"}
+    ],
+    kid:"k_repair"
   }
 ];
 
@@ -1099,7 +1176,16 @@ function askLargeExpense(unitId, amount, desc, urgent){
   });
 }
 const SAVE_KEY="rml_v04";
-function savePersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');o.best=Math.max(o.best||0,S.day-1);o.notebook=S.notebook;o.sound=S.sound;o.textSpeed=S.textSpeed;localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}
+function savePersist(){try{
+  const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');
+  o.best=Math.max(o.best||0,S.day-1);
+  o.bestCash=Math.max(o.bestCash||0,S.cash);
+  o.bestRep=Math.max(o.bestRep||0,S.rep);
+  o.notebook=S.notebook;o.sound=S.sound;o.textSpeed=S.textSpeed;
+  if(S.playerName) o.playerName=S.playerName;
+  localStorage.setItem(SAVE_KEY,JSON.stringify(o));
+}catch(e){}}
+function getBestRecord(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');}catch(e){return{};}}
 function loadPersist(){try{const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');if(Array.isArray(o.notebook))S.notebook=o.notebook.filter(x=>typeof x==='string');if(typeof o.sound==='boolean')S.sound=o.sound;if(o.textSpeed!==undefined)S.textSpeed=o.textSpeed;if(o.playerName)S.playerName=o.playerName;return o;}catch(e){return{};}}
 function getBest(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}').best||0;}catch(e){return 0;}}
 
@@ -1992,23 +2078,40 @@ function displayRole(cid){
 function checkEnd(){
   if(S.inDialog||S.inModal)return;
   if(S.cash<-20000){
-    const bankMsg = S.bizMode==="sublease"
-      ? "資金斷鏈，被大房東掃地出門。你去韓國投靠親戚了。"
-      : "現金流爆了，付不出員工薪水跟辦公室租金。你把代管合約交還給房東，低調結束營業。";
-    end("lose","破產",bankMsg);
+    // 破產但聲譽高 → 跑路去韓國結局
+    if(S.rep>=50){
+      end("lose","跑路去韓國","帳面爆了但口碑還在。你把物件移交同業，訂了單程機票去首爾投靠親戚。多年後有人在明洞看到你開炸雞店。");
+    } else {
+      const bankMsg = S.bizMode==="sublease"
+        ? "資金斷鏈，被大房東掃地出門。你去韓國投靠親戚了。"
+        : "現金流爆了，付不出員工薪水跟辦公室租金。你把代管合約交還給房東，低調結束營業。";
+      end("lose","破產",bankMsg);
+    }
   }
   else if(S.rep<=0){end("lose","聲譽歸零","爆料公社頭版，再也沒人要租你的房。你刪掉所有物件，低調離開這個圈子。");}
   else if(S.hp<=0){end("lose","精神崩潰","你凌晨 3 點在便利商店前坐了 2 小時。老婆接到你的電話哭了。你決定退出房東圈。");}
   else if(S.day>S.maxDay){
     if(S.cash>=200000 && S.rep>=80){end("epic","升級·自有房東",`60 天內你撐住了，而且還賺了頭期款。你把 ${S.playerName}代管 升級，開始買下第一間自己的物件。恭喜。`);}
     else if(S.rep>=90){end("epic","最佳房東",`你撐過了 60 天，而且每個房客都幫你寫五星好評。里長推薦你去市府接案。${S.playerName} 成了業界傳奇。`);}
+    else if(S.rep>=80){end("epic","開顧問公司教代管",`60 天你學了全套。離開第一線，開了「${S.playerName}物管顧問」，巡迴全台教新手代管業該怎麼做人。鐘點 $8000。`);}
     else{end("win","合格的租賃管理人員","你撐過了 30 天。恭喜，你正式成為一名合格的租賃管理人員。繼續下個月。");}
   }
 }
 
 function end(type,title,msg){
   S.gameover=true;S.win=type!=="lose";S.endMsg=msg;S.running=false;
+  // 破紀錄檢測
+  const prev = getBestRecord();
+  const brokeRecord = (S.day-1) > (prev.best||0) || S.cash > (prev.bestCash||0) || S.rep > (prev.bestRep||0);
   savePersist();
+  if(brokeRecord && type!=="lose"){
+    setTimeout(()=>{
+      fx("🎉 破紀錄！","#c9a24a");
+      AUDIO.fanfare();
+      // 第二波
+      setTimeout(()=>{fx("🏆 新紀錄達成","#9ad17f");},700);
+    },500);
+  }
   if(type==="lose") AUDIO.lose(); else AUDIO.fanfare();
   const es=document.getElementById("endScr");
   es.classList.remove("hide");
@@ -2249,6 +2352,14 @@ typeSubtitle();
 // 預填玩家名字（如果之前存過）
 const pni = document.getElementById("playerNameInput");
 if(pni && S.playerName) pni.value = S.playerName;
+// 顯示最高紀錄
+(function renderBestRecord(){
+  const el = document.getElementById("bestRecord");
+  if(!el) return;
+  const r = getBestRecord();
+  if(!r.best && !r.bestCash) return;
+  el.innerHTML = `🏆 你的最高紀錄：撐 <b style="color:var(--gold);">${r.best||0}</b> 天 · 最佳現金 <b style="color:var(--gold);">$${(r.bestCash||0).toLocaleString()}</b> · 最佳聲譽 <b style="color:var(--gold);">${r.bestRep||0}</b>`;
+})();
 </script>
 </body>
 </html>
